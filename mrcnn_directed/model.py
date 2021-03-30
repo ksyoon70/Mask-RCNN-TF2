@@ -2232,10 +2232,12 @@ class MaskRCNNDirected():
         # Conditional import to support versions of Keras before 2.2
         # TODO: remove in about 6 months (end of 2018)
         try:
-            from keras.engine import saving
+            #from keras.engine import saving
+            from tensorflow.python.keras.saving import hdf5_format
         except ImportError:
             # Keras before 2.2 used the 'topology' namespace.
-            from keras.engine import topology as saving
+            #from keras.engine import topology as saving
+            from tensorflow.python.keras.engine import topology as saving
 
         if exclude:
             by_name = True
@@ -2257,9 +2259,11 @@ class MaskRCNNDirected():
             layers = filter(lambda l: l.name not in exclude, layers)
 
         if by_name:
-            saving.load_weights_from_hdf5_group_by_name(f, layers)
+            #saving.load_weights_from_hdf5_group_by_name(f, layers)
+            hdf5_format.load_weights_from_hdf5_group_by_name(f, layers)
         else:
-            saving.load_weights_from_hdf5_group(f, layers)
+            #saving.load_weights_from_hdf5_group(f, layers)
+            hdf5_format.load_weights_from_hdf5_group(f, layers)
         if hasattr(f, 'close'):
             f.close()
 
@@ -3029,10 +3033,12 @@ class MaskRCNNDirectedRPN():
         # Conditional import to support versions of Keras before 2.2
         # TODO: remove in about 6 months (end of 2018)
         try:
-            from keras.engine import saving
+            #from keras.engine import saving
+            from tensorflow.python.keras.saving import hdf5_format
         except ImportError:
             # Keras before 2.2 used the 'topology' namespace.
-            from keras.engine import topology as saving
+            #from keras.engine import topology as saving
+            from tensorflow.python.keras.engine  import toplolgy as saving
 
         if exclude:
             by_name = True
@@ -3054,9 +3060,9 @@ class MaskRCNNDirectedRPN():
             layers = filter(lambda l: l.name not in exclude, layers)
 
         if by_name:
-            saving.load_weights_from_hdf5_group_by_name(f, layers)
+            hdf5_format.load_weights_from_hdf5_group_by_name(f, layers)
         else:
-            saving.load_weights_from_hdf5_group(f, layers)
+            hdf5_format.load_weights_from_hdf5_group(f, layers)
         if hasattr(f, 'close'):
             f.close()
 
