@@ -316,7 +316,7 @@ class Dataset(object):
                                       for info, id in zip(self.image_info, self.image_ids)}
 
         # Map sources to class_ids they support
-        self.sources = list(set([i['source'] for i in self.class_info]))
+        self.sources = list(set([i['source'] for i in self.class_info])) #['', 'dataset']
         self.source_class_ids = {}
         # Loop over datasets
         for source in self.sources:
