@@ -1,6 +1,9 @@
 import os
 import xml.etree
 from numpy import zeros, asarray
+import sys
+
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 import mrcnn.utils
 import mrcnn.config
@@ -11,8 +14,8 @@ class KangarooDataset(mrcnn.utils.Dataset):
 	def load_dataset(self, dataset_dir, is_train=True):
 		self.add_class("dataset", 1, "kangaroo")
 
-		images_dir = dataset_dir + '/images/'
-		annotations_dir = dataset_dir + '/annots/'
+		images_dir = os.path.join(dataset_dir,'images') #dataset_dir + '/images/'
+		annotations_dir = os.path.join(dataset_dir,'annots') #dataset_dir + '/annots/'
 
 		for filename in os.listdir(images_dir):
 			image_id = filename[:-4]
@@ -78,20 +81,21 @@ class KangarooConfig(mrcnn.config.Config):
 
 # prepare train set
 train_set = KangarooDataset()
-train_set.load_dataset(dataset_dir='kangaroo', is_train=True)
+dataset_dir = os.path.join(os.path.dirname(__file__),'kangaroo')
+train_set.load_dataset(dataset_dir=dataset_dir, is_train=True)
 train_set.prepare()
 
 # prepare test/val set
 valid_dataset = KangarooDataset()
-valid_dataset.load_dataset(dataset_dir='kangaroo', is_train=False)
+valid_dataset.load_dataset(dataset_dir=dataset_dir, is_train=False)
 valid_dataset.prepare()
 
 # prepare config
 kangaroo_config = KangarooConfig()
-
+model_dir = os.path.join(os.path.dirname(__file__).parents,'mrcnn')
 # define the model
 model = mrcnn.model.MaskRCNN(mode='training', 
-                             model_dir='./', 
+                             model_dir=model_dir, 
                              config=kangaroo_config)
 
 model.load_weights(filepath='mask_rcnn_coco.h5', 
