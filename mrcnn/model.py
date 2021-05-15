@@ -892,6 +892,14 @@ def build_rpn_model(anchor_stride, anchors_per_location, depth):
     outputs = rpn_graph(input_feature_map, anchors_per_location, anchor_stride)
     return KM.Model([input_feature_map], outputs, name="rpn_model")
 
+class MapLayer(KL.Layer):
+    def __init__(self, dele, name="maplayer", **kwargs):
+        super(MapLayer, self).__init__(name=name, **kwargs)
+        self.dele=dele
+    def call(self, x):
+        return self.dele(self.dele(x,3),2)
+        #return tf.map_fn(lambda x: K.squeeze(K.squeeze(x, 3), 2),name="pool_squeeze")
+
 
 ############################################################
 #  Feature Pyramid Network Heads
@@ -933,9 +941,9 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
     x = KL.TimeDistributed(BatchNorm(), name='mrcnn_class_bn2')(x, training=train_bn)
     x = KL.Activation('relu')(x)
 
-    shared = KL.Lambda(lambda x: K.squeeze(K.squeeze(x, 3), 2),
-                       name="pool_squeeze")(x)
-
+    #shared = KL.Lambda(lambda x: K.squeeze(K.squeeze(x, 3), 2),
+    #                   name="pool_squeeze")(x)
+    shared = MapLayer(K.squeeze,name="pool_squeeze")(x)
     # Classifier head
     mrcnn_class_logits = KL.TimeDistributed(KL.Dense(num_classes),
                                             name='mrcnn_class_logits')(shared)
@@ -948,7 +956,11 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
                            name='mrcnn_bbox_fc')(shared)
     # Reshape to [batch, num_rois, NUM_CLASSES, (dy, dx, log(dh), log(dw))]
     s = K.int_shape(x)
-    mrcnn_bbox = KL.Reshape((s[1], num_classes, 4), name="mrcnn_bbox")(x)
+    #mrcnn_bbox = KL.Reshape((s[1], num_classes, 4), name="mrcnn_bbox")(x)
+    if s[1] is None:
+        mrcnn_bbox = KL.Reshape((-1, num_classes, 4), name="mrcnn_bbox")(x)
+    else:
+        mrcnn_bbox = KL.Reshape((s[1], num_classes, 4), name="mrcnn_bbox")(x)
 
     return mrcnn_class_logits, mrcnn_probs, mrcnn_bbox
 
@@ -1811,6 +1823,25 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
             error_count += 1
             if error_count > 5:
                 raise
+class AnchorsLayer(KL.Layer):
+    def __init__(self, anchors, name="anchors", **kwargs):
+        super(AnchorsLayer, self).__init__(name=name, **kwargs)
+        self.anchors = tf.Variable(anchors)
+
+    def call(self, dummy):
+        return self.anchors
+
+    def get_config(self):
+        config = super(AnchorsLayer, self).get_config()
+        return config
+
+class NBoxLayer(KL.Layer):  #box normalization
+    def __init__(self, dele, name="nboxlayers", **kwargs):
+        super(NBoxLayer, self).__init__(name=name, **kwargs)
+        self.dele = dele
+
+    def call(self, boxes,shape):
+        return self.dele(boxes,shape)
 
 
 ############################################################
@@ -1872,8 +1903,9 @@ class MaskRCNN():
             input_gt_boxes = KL.Input(
                 shape=[None, 4], name="input_gt_boxes", dtype=tf.float32)
             # Normalize coordinates
-            gt_boxes = KL.Lambda(lambda x: norm_boxes_graph(
-                x, K.shape(input_image)[1:3]))(input_gt_boxes)
+            #gt_boxes = KL.Lambda(lambda x: norm_boxes_graph(
+            #    x, K.shape(input_image)[1:3]))(input_gt_boxes)
+            gt_boxes = NBoxLayer(dele=norm_boxes_graph, name="nboxlayers")(boxes=input_gt_boxes,shape=K.shape(input_image)[1:3])
             # 3. GT Masks (zero padded)
             # [batch, height, width, MAX_GT_INSTANCES]
             if config.USE_MINI_MASK:
@@ -1931,7 +1963,8 @@ class MaskRCNN():
             # TODO: can this be optimized to avoid duplicating the anchors?
             anchors = np.broadcast_to(anchors, (config.BATCH_SIZE,) + anchors.shape)
             # A hack to get around Keras's bad support for constants
-            anchors = KL.Lambda(lambda x: tf.Variable(anchors), name="anchors")(input_image)
+            #anchors = KL.Lambda(lambda x: tf.Variable(anchors), name="anchors")(input_image)
+            anchors = AnchorsLayer(anchors, name="anchors")(input_image)
         else:
             anchors = input_anchors
 
@@ -2165,6 +2198,7 @@ class MaskRCNN():
             clipnorm=self.config.GRADIENT_CLIP_NORM)
         # Add Losses
         # First, clear previously set losses to avoid duplication
+        #여기 두줄을 지워야 한다고 함.
         self.keras_model._losses = []
         self.keras_model._per_input_losses = {}
         loss_names = [
@@ -2179,6 +2213,7 @@ class MaskRCNN():
             loss = (
                 tf.reduce_mean(layer.output, keepdims=True)
                 * self.config.LOSS_WEIGHTS.get(name, 1.))
+
             self.keras_model.add_loss(loss)
 
         # Add L2 Regularization

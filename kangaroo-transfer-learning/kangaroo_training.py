@@ -92,11 +92,12 @@ valid_dataset.prepare()
 
 # prepare config
 kangaroo_config = KangarooConfig()
-model_dir = os.path.join(os.path.dirname(__file__).parents,'mrcnn')
+model_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))),'mrcnn')
 # define the model
 model = mrcnn.model.MaskRCNN(mode='training', 
                              model_dir=model_dir, 
                              config=kangaroo_config)
+
 
 model.load_weights(filepath='mask_rcnn_coco.h5', 
                    by_name=True, 

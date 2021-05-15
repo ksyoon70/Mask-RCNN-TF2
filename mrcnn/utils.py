@@ -311,9 +311,9 @@ class Dataset(object):
 
         # Mapping from source class and image IDs to internal IDs
         self.class_from_source_map = {"{}.{}".format(info['source'], info['id']): id
-                                      for info, id in zip(self.class_info, self.class_ids)}
+                                      for info, id in zip(self.class_info, self.class_ids)} #self.class_from_source_map = {'.0': 0, 'dataset.1': 1}
         self.image_from_source_map = {"{}.{}".format(info['source'], info['id']): id
-                                      for info, id in zip(self.image_info, self.image_ids)}
+                                      for info, id in zip(self.image_info, self.image_ids)} #{'dataset.00132': 0, 'dataset.00046': 1, 'dataset.00052': 2, 'dataset.00085': 3, 'dataset.00091': 4, 'dataset.00084': 5, 'dataset.00053': 6, 'dataset.00047': 7, 'dataset.00127': 8, 'dataset.00125': 9, 'dataset.00131': 10, 'dataset.00119': 11, 'dataset.00051': 12, 'dataset.00045': 13, ...}
 
         # Map sources to class_ids they support
         self.sources = list(set([i['source'] for i in self.class_info])) #['', 'dataset']
@@ -325,7 +325,7 @@ class Dataset(object):
             for i, info in enumerate(self.class_info):
                 # Include BG class in all datasets
                 if i == 0 or source == info['source']:
-                    self.source_class_ids[source].append(i)
+                    self.source_class_ids[source].append(i)  # self.source_classids['dataset']:[0, 1] 이런식으로 저장됨.
 
     def map_source_class_id(self, source_class_id):
         """Takes a source class ID and returns the int class ID assigned to it.
