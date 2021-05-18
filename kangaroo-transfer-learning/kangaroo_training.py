@@ -8,6 +8,12 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import mrcnn.utils
 import mrcnn.config
 import mrcnn.model
+import tensorflow as tf
+
+#GPU 사용시 풀어 놓을 것
+physical_devices = tf.config.experimental.list_physical_devices('GPU')
+assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
+config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 class KangarooDataset(mrcnn.utils.Dataset):
 
@@ -98,8 +104,8 @@ model = mrcnn.model.MaskRCNN(mode='training',
                              model_dir=model_dir, 
                              config=kangaroo_config)
 
-
-model.load_weights(filepath='mask_rcnn_coco.h5', 
+mrcnn_weight_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))),'mask_rcnn_coco.h5')
+model.load_weights(filepath=mrcnn_weight_dir, 
                    by_name=True, 
                    exclude=["mrcnn_class_logits", "mrcnn_bbox_fc",  "mrcnn_bbox", "mrcnn_mask"])
 
