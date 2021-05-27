@@ -11,10 +11,11 @@ import mrcnn.model
 import tensorflow as tf
 
 #GPU 사용시 풀어 놓을 것
-physical_devices = tf.config.experimental.list_physical_devices('GPU')
-assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
-config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
-
+if tf.config.list_physical_devices('GPU') :
+	physical_devices = tf.config.experimental.list_physical_devices('GPU')
+	assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
+	config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
+	
 class KangarooDataset(mrcnn.utils.Dataset):
 
 	def load_dataset(self, dataset_dir, is_train=True):
