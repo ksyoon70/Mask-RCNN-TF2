@@ -510,15 +510,15 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
         tf.Assert(tf.greater(tf.shape(proposals)[0], 0), [proposals],
                   name="roi_assertion"),
     ]
-    with tf.control_dependencies(asserts):
-        proposals = tf.identity(proposals)
+    with tf.control_dependencies(asserts): # tensorflow 2.x에서는 필요 없는 구문이라고 한다.
+        proposals = tf.identity(proposals) #동일한 크기와 내용의 텐서를 만든다.
 
     # Remove zero padding
     proposals, _ = trim_zeros_graph(proposals, name="trim_proposals")
     gt_boxes, non_zeros = trim_zeros_graph(gt_boxes, name="trim_gt_boxes")
     gt_class_ids = tf.boolean_mask(gt_class_ids, non_zeros,
                                    name="trim_gt_class_ids")
-    gt_masks = tf.gather(gt_masks, tf.where(non_zeros)[:, 0], axis=2,
+    gt_masks = tf.gather(gt_masks, tf.where(non_zeros)[:, 0], axis=2, # tf.where(non_zeros)[:, 0] non_zeros의 인덱스를 구한다.
                          name="trim_gt_masks")
 
     # Handle COCO crowds
@@ -2864,6 +2864,7 @@ def trim_zeros_graph(boxes, name='trim_zeros'):
 
     boxes: [N, 4] matrix of boxes.
     non_zeros: [N] a 1D boolean mask identifying the rows to keep
+    박스에서 [0,0,0,0] 인 박스는 제거 하고 숫자가 있는 박스와 그 인덱스만을 구하여 리턴하는 함수
     """
     non_zeros = tf.cast(tf.reduce_sum(tf.abs(boxes), axis=1), tf.bool)
     boxes = tf.boolean_mask(boxes, non_zeros, name=name)
