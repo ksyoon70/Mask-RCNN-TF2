@@ -524,36 +524,40 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     # Handle COCO crowds
     # A crowd box in COCO is a bounding box around several instances. Exclude
     # them from training. A crowd box is given a negative class ID.
+    # crowd box는 음수 값을 가지며 여러 인스턴스가 겹치는 경우이다.
     crowd_ix = tf.where(gt_class_ids < 0)[:, 0]
     non_crowd_ix = tf.where(gt_class_ids > 0)[:, 0]
     crowd_boxes = tf.gather(gt_boxes, crowd_ix)
     gt_class_ids = tf.gather(gt_class_ids, non_crowd_ix)
-    gt_boxes = tf.gather(gt_boxes, non_crowd_ix)
+    gt_boxes = tf.gather(gt_boxes, non_crowd_ix) # gt_boxes는 non_crowd_ix에 대한 박스로만 추출한다.
     gt_masks = tf.gather(gt_masks, non_crowd_ix, axis=2)
 
     # Compute overlaps matrix [proposals, gt_boxes]
+    # [proposals, gt_boxes]사이의 IOU를 구한다.
     overlaps = overlaps_graph(proposals, gt_boxes)
 
     # Compute overlaps with crowd boxes [proposals, crowd_boxes]
+    # [proposals, crowd_boxes]의 IOU를 구한다.
     crowd_overlaps = overlaps_graph(proposals, crowd_boxes)
-    crowd_iou_max = tf.reduce_max(crowd_overlaps, axis=1)
-    no_crowd_bool = (crowd_iou_max < 0.001)
+    crowd_iou_max = tf.reduce_max(crowd_overlaps, axis=1) #IOU 중에서 가장 큰 값을 찾는다.
+    no_crowd_bool = (crowd_iou_max < 0.001)  #0.001보다 작으면 no_crowd_bool을 set 한다.
 
     # Determine positive and negative ROIs
-    roi_iou_max = tf.reduce_max(overlaps, axis=1)
+    roi_iou_max = tf.reduce_max(overlaps, axis=1) # IOU 중에서 가장 큰 값을 찾는다.
     # 1. Positive ROIs are those with >= 0.5 IoU with a GT box
-    positive_roi_bool = (roi_iou_max >= 0.5)
-    positive_indices = tf.where(positive_roi_bool)[:, 0]
+    positive_roi_bool = (roi_iou_max >= 0.5)  # 0.5보다 크면 positive_roi_bool로 set 한다.
+    positive_indices = tf.where(positive_roi_bool)[:, 0] # positive_roi의 인덱스를 구한다.
     # 2. Negative ROIs are those with < 0.5 with every GT box. Skip crowds.
-    negative_indices = tf.where(tf.logical_and(roi_iou_max < 0.5, no_crowd_bool))[:, 0]
+    negative_indices = tf.where(tf.logical_and(roi_iou_max < 0.5, no_crowd_bool))[:, 0] #roi가 0.5보다 작고, no_crowd_bool이 set 인것의 인덱스를 구한다.
 
     # Subsample ROIs. Aim for 33% positive
     # Positive ROIs
     positive_count = int(config.TRAIN_ROIS_PER_IMAGE *
-                         config.ROI_POSITIVE_RATIO)
-    positive_indices = tf.random.shuffle(positive_indices)[:positive_count]
+                         config.ROI_POSITIVE_RATIO)  # ROI_POSITIVE_RATIO = 0.33 * TRAIN_ROIS_PER_IMAGE = 200 => 66개 = positive_count
+    positive_indices = tf.random.shuffle(positive_indices)[:positive_count] # postitive 인덱스를 랜덤하게 66개만 선택한다.
     positive_count = tf.shape(positive_indices)[0]
     # Negative ROIs. Add enough to maintain positive:negative ratio.
+    # 비슷하게 negative 비율을 계산하여 갯수와 인덱스를 구한다.
     r = 1.0 / config.ROI_POSITIVE_RATIO
     negative_count = tf.cast(r * tf.cast(positive_count, tf.float32), tf.int32) - positive_count
     negative_indices = tf.random.shuffle(negative_indices)[:negative_count]
@@ -562,18 +566,22 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     negative_rois = tf.gather(proposals, negative_indices)
 
     # Assign positive ROIs to GT boxes.
+    # positive 인덱스에 해당하는 IOU만 따로 구한다.
+    # IOU가 0보다 크면 가장 큰 것의 인덱스를 구한다.
     positive_overlaps = tf.gather(overlaps, positive_indices)
     roi_gt_box_assignment = tf.cond(
         tf.greater(tf.shape(positive_overlaps)[1], 0),
         true_fn = lambda: tf.argmax(positive_overlaps, axis=1),
         false_fn = lambda: tf.cast(tf.constant([]),tf.int64)
     )
+    #최대 값을 인덱스를 기반으로  해당 박스를 구한다.
     roi_gt_boxes = tf.gather(gt_boxes, roi_gt_box_assignment)
+    #최대 값을 인덱스를 기반으로  해당 박스의 class를 구한다.
     roi_gt_class_ids = tf.gather(gt_class_ids, roi_gt_box_assignment)
 
     # Compute bbox refinement for positive ROIs
     deltas = utils.box_refinement_graph(positive_rois, roi_gt_boxes)
-    deltas /= config.BBOX_STD_DEV
+    deltas /= config.BBOX_STD_DEV #BBOX_STD_DEV = np.array([0.1, 0.1, 0.2, 0.2])
 
     # Assign positive ROIs to GT masks
     # Permute masks to [N, height, width, 1]

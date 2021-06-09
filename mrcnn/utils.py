@@ -201,7 +201,7 @@ def box_refinement_graph(box, gt_box):
     dx = (gt_center_x - center_x) / width
     dh = tf.math.log(gt_height / height)
     dw = tf.math.log(gt_width / width)
-
+    # max IOU를 갖는 box와  gt_box사이의 차이를 계산하여 리턴한다.
     result = tf.stack([dy, dx, dh, dw], axis=1)
     return result
 
