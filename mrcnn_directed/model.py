@@ -2121,6 +2121,9 @@ class MaskRCNNDirected():
 
             # Network Heads
             # TODO: verify that this handles zero padded ROIs
+            # mrcnn_feature_maps = [P2, P3, P4, P5]
+            #  POOL_SIZE = 7
+            # TRAIN_BN = False  # Defaulting to False since batch size is often small
             mrcnn_class_logits, mrcnn_class, mrcnn_bbox =\
                 fpn_classifier_graph(rois, mrcnn_feature_maps, input_image_meta,
                                      config.POOL_SIZE, config.NUM_CLASSES,

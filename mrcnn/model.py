@@ -383,22 +383,22 @@ class PyramidROIAlign(KE.Layer):
         h = y2 - y1
         w = x2 - x1
         # Use shape of first image. Images in a batch must have the same size.
-        image_shape = parse_image_meta_graph(image_meta)['image_shape'][0]
+        image_shape = parse_image_meta_graph(image_meta)['image_shape'][0] #첫번째 이미지 메타데이터의 image_shape 정보를 가져 온다.
         # Equation 1 in the Feature Pyramid Networks paper. Account for
         # the fact that our coordinates are normalized here.
         # e.g. a 224x224 ROI (in pixels) maps to P4
         image_area = tf.cast(image_shape[0] * image_shape[1], tf.float32)
-        roi_level = log2_graph(tf.sqrt(h * w) / (224.0 / tf.sqrt(image_area)))
+        roi_level = log2_graph(tf.sqrt(h * w) / (224.0 / tf.sqrt(image_area)))  #tf.sqrt(image_area)가 붙은 것은 영상의 크기로 normalization 된 것을 해제 하기 위함으로 보인다.
         roi_level = tf.minimum(5, tf.maximum(
-            2, 4 + tf.cast(tf.round(roi_level), tf.int32)))
-        roi_level = tf.squeeze(roi_level, 2)
+            2, 4 + tf.cast(tf.round(roi_level), tf.int32))) # k= [k_0 + log_2(sqr(wh)/244)] k_0는 P4
+        roi_level = tf.squeeze(roi_level, 2) # 피라미드 인덱스를 구한다.
 
         # Loop through levels and apply ROI pooling to each. P2 to P5.
         pooled = []
         box_to_level = []
         for i, level in enumerate(range(2, 6)):
-            ix = tf.where(tf.equal(roi_level, level))
-            level_boxes = tf.gather_nd(boxes, ix)
+            ix = tf.where(tf.equal(roi_level, level)) #조건이 맞으면 인덱스 리턴
+            level_boxes = tf.gather_nd(boxes, ix)  #Gather slices from params into a Tensor with shape specified by indices. boxes에서 ix 인덱스에 해당 값만 가져온다.
 
             # Box indices for crop_and_resize.
             box_indices = tf.cast(ix[:, 0], tf.int32)
@@ -407,7 +407,7 @@ class PyramidROIAlign(KE.Layer):
             box_to_level.append(ix)
 
             # Stop gradient propogation to ROI proposals
-            level_boxes = tf.stop_gradient(level_boxes)
+            level_boxes = tf.stop_gradient(level_boxes) #그레디언트 계산에서 값 고정
             box_indices = tf.stop_gradient(box_indices)
 
             # Crop and Resize
@@ -420,32 +420,33 @@ class PyramidROIAlign(KE.Layer):
             # which is how it's done in tf.crop_and_resize()
             # Result: [batch * num_boxes, pool_height, pool_width, channels]
             pooled.append(tf.image.crop_and_resize(
-                feature_maps[i], level_boxes, box_indices, self.pool_shape,
-                method="bilinear"))
+                feature_maps[i], level_boxes, box_indices, self.pool_shape, #reature_map[i] 에서 level_boxes에 해당하는 이미지를 자른 후 pool_shape 만큼 크기를 조절 한다.
+                method="bilinear")) #level_boxes 만큼 박스가 생긴다.
 
         # Pack pooled features into one tensor
-        pooled = tf.concat(pooled, axis=0)
+        pooled = tf.concat(pooled, axis=0) #croped 이미지를 저장
 
         # Pack box_to_level mapping into one array and add another
         # column representing the order of pooled boxes
-        box_to_level = tf.concat(box_to_level, axis=0)
-        box_range = tf.expand_dims(tf.range(tf.shape(box_to_level)[0]), 1)
-        box_to_level = tf.concat([tf.cast(box_to_level, tf.int32), box_range],
+        box_to_level = tf.concat(box_to_level, axis=0) # 박스를 위에서 아래로 정렬..
+        box_range = tf.expand_dims(tf.range(tf.shape(box_to_level)[0]), 1) #tf.shape(box_to_level)[0] box 갯수
+        box_to_level = tf.concat([tf.cast(box_to_level, tf.int32), box_range], #한개의 축을 늘인다.
                                  axis=1)
 
         # Rearrange pooled features to match the order of the original boxes
         # Sort box_to_level by batch then box index
         # TF doesn't have a way to sort by two columns, so merge them and sort.
+        # 이해가 잘 안되는 부분인데... 테스트 필요 by 윤경섭
         sorting_tensor = box_to_level[:, 0] * 100000 + box_to_level[:, 1]
-        ix = tf.nn.top_k(sorting_tensor, k=tf.shape(
+        ix = tf.nn.top_k(sorting_tensor, k=tf.shape(  #k 갯수만큼 큰것 부터 소팅 한다.
             box_to_level)[0]).indices[::-1]
-        ix = tf.gather(box_to_level[:, 2], ix)
+        ix = tf.gather(box_to_level[:, 2], ix) #인덱스(ix)에 따라 파라미터(box_to_level[:,2]로 부터 슬라이싱을 한다. 
         pooled = tf.gather(pooled, ix)
 
         # Re-add the batch dimension
         shape = tf.concat([tf.shape(boxes)[:2], tf.shape(pooled)[1:]], axis=0)
         pooled = tf.reshape(pooled, shape)
-        return pooled
+        return pooled #  [batch, num_boxes, pool_height, pool_width, channels].
 
     def compute_output_shape(self, input_shape):
         return input_shape[0][:2] + self.pool_shape + (input_shape[2][-1], )
@@ -939,7 +940,7 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
     # ROI Pooling
     # Shape: [batch, num_rois, POOL_SIZE, POOL_SIZE, channels]
     x = PyramidROIAlign([pool_size, pool_size],
-                        name="roi_align_classifier")([rois, image_meta] + feature_maps)
+                        name="roi_align_classifier")([rois, image_meta] + feature_maps) # []는 리스트가 되고 +feature_maps가 list이므로 리스트에 추가 되는 구조
     # Two 1024 FC layers (implemented with Conv2D for consistency)
     x = KL.TimeDistributed(KL.Conv2D(fc_layers_size, (pool_size, pool_size), padding="valid"),
                            name="mrcnn_class_conv1")(x)
