@@ -444,7 +444,7 @@ class PyramidROIAlign(KE.Layer):
         pooled = tf.gather(pooled, ix)
 
         # Re-add the batch dimension
-        shape = tf.concat([tf.shape(boxes)[:2], tf.shape(pooled)[1:]], axis=0)
+        shape = tf.concat([tf.shape(boxes)[:2], tf.shape(pooled)[1:]], axis=0) #[:2] 2는 빠지는 것임 tf.shape(boxes)[:2]는 [batch, num_boxes 가 되고 tf.shape(pooled)[1:] pool_height, pool_width, channels] 
         pooled = tf.reshape(pooled, shape)
         return pooled #  [batch, num_boxes, pool_height, pool_width, channels].
 
@@ -953,7 +953,7 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
 
     #shared = KL.Lambda(lambda x: K.squeeze(K.squeeze(x, 3), 2),
     #                   name="pool_squeeze")(x)
-    shared = MapLayer(K.squeeze,name="pool_squeeze")(x)
+    shared = MapLayer(K.squeeze,name="pool_squeeze")(x) # 아마도 3,2원을 삭제 하는 기능을 할 것으로 예상.
     # Classifier head
     mrcnn_class_logits = KL.TimeDistributed(KL.Dense(num_classes),
                                             name='mrcnn_class_logits')(shared)
