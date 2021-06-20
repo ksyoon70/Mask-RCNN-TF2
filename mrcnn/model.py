@@ -944,16 +944,17 @@ def fpn_classifier_graph(rois, feature_maps, image_meta,
     # Two 1024 FC layers (implemented with Conv2D for consistency)
     x = KL.TimeDistributed(KL.Conv2D(fc_layers_size, (pool_size, pool_size), padding="valid"),
                            name="mrcnn_class_conv1")(x)
-    x = KL.TimeDistributed(BatchNorm(), name='mrcnn_class_bn1')(x, training=train_bn)
+    x = KL.TimeDistributed(BatchNorm(), name='mrcnn_class_bn1')(x, training=train_bn) #activation_67 (Activation)      (1, None, 1, 1, 1024 0           mrcnn_class_bn1[0][0]
     x = KL.Activation('relu')(x)
+    #mrcnn_class_conv2 (TimeDistribu (1, None, 1, 1, 1024 1049600     activation_67[0][0]
     x = KL.TimeDistributed(KL.Conv2D(fc_layers_size, (1, 1)),
                            name="mrcnn_class_conv2")(x)
     x = KL.TimeDistributed(BatchNorm(), name='mrcnn_class_bn2')(x, training=train_bn)
     x = KL.Activation('relu')(x)
-
+ 
     #shared = KL.Lambda(lambda x: K.squeeze(K.squeeze(x, 3), 2),
     #                   name="pool_squeeze")(x)
-    shared = MapLayer(K.squeeze,name="pool_squeeze")(x) # 아마도 3,2원을 삭제 하는 기능을 할 것으로 예상.
+    shared = MapLayer(K.squeeze,name="pool_squeeze")(x) # 아마도 3,2원을 삭제 하는 기능을 할 것으로 예상. (feature map 1장을 대응)
     # Classifier head
     mrcnn_class_logits = KL.TimeDistributed(KL.Dense(num_classes),
                                             name='mrcnn_class_logits')(shared)
