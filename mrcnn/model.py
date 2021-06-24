@@ -1055,15 +1055,16 @@ def rpn_class_loss_graph(rpn_match, rpn_class_logits):
     anchor_class = K.cast(K.equal(rpn_match, 1), tf.int32)
     # Positive and Negative anchors contribute to the loss,
     # but neutral anchors (match value = 0) don't.
-    indices = tf.where(K.not_equal(rpn_match, 0))
+    indices = tf.where(K.not_equal(rpn_match, 0)) # GT에서 0이 아닌거니까 사물 아니면 배경인 것의 인덱스만 구함
     # Pick rows that contribute to the loss and filter out the rest.
-    rpn_class_logits = tf.gather_nd(rpn_class_logits, indices)
-    anchor_class = tf.gather_nd(anchor_class, indices)
+    rpn_class_logits = tf.gather_nd(rpn_class_logits, indices) #rpn에서 구한 것중 배경과 사물 인것만 추림.
+    anchor_class = tf.gather_nd(anchor_class, indices) #GT에서 사물과 배경인것만 추림
     # Cross entropy loss
     loss = K.sparse_categorical_crossentropy(target=anchor_class,
                                              output=rpn_class_logits,
                                              from_logits=True)
-    loss = K.switch(tf.size(loss) > 0, K.mean(loss), tf.constant(0.0))
+    #loss의 평균을 리턴한다.
+    loss = K.switch(tf.size(loss) > 0, K.mean(loss), tf.constant(0.0)) #t = tf.constant([[[1, 1, 1], [2, 2, 2]], [[3, 3, 3], [4, 4, 4]]]) tf.size(t)  # 12
     return loss
 
 
