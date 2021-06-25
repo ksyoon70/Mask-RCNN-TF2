@@ -1037,8 +1037,8 @@ def smooth_l1_loss(y_true, y_pred):
     y_true and y_pred are typically: [N, 4], but could be any shape.
     """
     diff = K.abs(y_true - y_pred)
-    less_than_one = K.cast(K.less(diff, 1.0), "float32")
-    loss = (less_than_one * 0.5 * diff**2) + (1 - less_than_one) * (diff - 0.5)
+    less_than_one = K.cast(K.less(diff, 1.0), "float32") #tf.keras.backend.less Element-wise truth value of (x < y).  A bool tensor.
+    loss = (less_than_one * 0.5 * diff**2) + (1 - less_than_one) * (diff - 0.5) # 오차가 1보다 작으면 1/2(dLoss)^2 이 되고 크면 (dloss -0.5) 가 된다.
     return loss
 
 
@@ -1084,11 +1084,11 @@ def rpn_bbox_loss_graph(config, target_bbox, rpn_match, rpn_bbox):
     indices = tf.where(K.equal(rpn_match, 1))
 
     # Pick bbox deltas that contribute to the loss
-    rpn_bbox = tf.gather_nd(rpn_bbox, indices)
+    rpn_bbox = tf.gather_nd(rpn_bbox, indices) # 아마도 rpn_bbox가 예측되는 box인것 같다. GT anchor와 동일한 인덱스의 rpn_bbox 만 추출한다.
 
     # Trim target bounding box deltas to the same length as rpn_bbox.
-    batch_counts = K.sum(K.cast(K.equal(rpn_match, 1), tf.int32), axis=1)
-    target_bbox = batch_pack_graph(target_bbox, batch_counts,
+    batch_counts = K.sum(K.cast(K.equal(rpn_match, 1), tf.int32), axis=1) # GT의 box의 갯수를 구한다.
+    target_bbox = batch_pack_graph(target_bbox, batch_counts, # target_bbox에 box의 갯수를 넣는다.
                                    config.IMAGES_PER_GPU)
 
     loss = smooth_l1_loss(target_bbox, rpn_bbox)
