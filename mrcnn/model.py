@@ -1087,7 +1087,7 @@ def rpn_bbox_loss_graph(config, target_bbox, rpn_match, rpn_bbox):
     rpn_bbox = tf.gather_nd(rpn_bbox, indices) # 아마도 rpn_bbox가 예측되는 box인것 같다. GT anchor와 동일한 인덱스의 rpn_bbox 만 추출한다.
 
     # Trim target bounding box deltas to the same length as rpn_bbox.
-    batch_counts = K.sum(K.cast(K.equal(rpn_match, 1), tf.int32), axis=1) # GT의 box의 갯수를 구한다.
+    batch_counts = K.sum(K.cast(K.equal(rpn_match, 1), tf.int32), axis=1) # GT 대비 예측이 맞는 box의 갯수를 구한다.
     target_bbox = batch_pack_graph(target_bbox, batch_counts, # target_bbox에 box의 갯수를 넣는다.
                                    config.IMAGES_PER_GPU)
 
@@ -1121,7 +1121,7 @@ def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,
 
     # Loss
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
-        labels=target_class_ids, logits=pred_class_logits)
+        labels=target_class_ids, logits=pred_class_logits)  #target_class_ids 가 타겟이고, pred_class_logits가 예측이다.
 
     # Erase losses of predictions of classes that are not in the active
     # classes of the image.
