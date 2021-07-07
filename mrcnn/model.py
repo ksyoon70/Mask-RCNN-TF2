@@ -1114,10 +1114,10 @@ def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,
     target_class_ids = tf.cast(target_class_ids, 'int64')
 
     # Find predictions of classes that are not in the dataset.
-    pred_class_ids = tf.argmax(pred_class_logits, axis=2)
+    pred_class_ids = tf.argmax(pred_class_logits, axis=2) # 예측 가장 확율이 큰 클래스의 인덱스 값을 얻어옴?
     # TODO: Update this line to work with batch > 1. Right now it assumes all
     #       images in a batch have the same active_class_ids
-    pred_active = tf.gather(active_class_ids[0], pred_class_ids)
+    pred_active = tf.gather(active_class_ids[0], pred_class_ids) #그러면 예측 클래스를 얻겠지.
 
     # Loss
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -1125,7 +1125,7 @@ def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,
 
     # Erase losses of predictions of classes that are not in the active
     # classes of the image.
-    loss = loss * pred_active
+    loss = loss * pred_active #pred_active가 loss의 필터 역할을 하는 것 같음.
 
     # Computer loss mean. Use only predictions that contribute
     # to the loss to get a correct mean.
@@ -1149,8 +1149,8 @@ def mrcnn_bbox_loss_graph(target_bbox, target_class_ids, pred_bbox):
     # the right class_id of each ROI. Get their indices.
     positive_roi_ix = tf.where(target_class_ids > 0)[:, 0]
     positive_roi_class_ids = tf.cast(
-        tf.gather(target_class_ids, positive_roi_ix), tf.int64)
-    indices = tf.stack([positive_roi_ix, positive_roi_class_ids], axis=1)
+        tf.gather(target_class_ids, positive_roi_ix), tf.int64) # GT에 해당하는 객체 class id를 구한다.
+    indices = tf.stack([positive_roi_ix, positive_roi_class_ids], axis=1) # 객체의 인덱스와 class id의 조합 의 인덱스
 
     # Gather the deltas (predicted and true) that contribute to loss
     target_bbox = tf.gather(target_bbox, positive_roi_ix)
@@ -1176,19 +1176,19 @@ def mrcnn_mask_loss_graph(target_masks, target_class_ids, pred_masks):
     # Reshape for simplicity. Merge first two dimensions into one.
     target_class_ids = K.reshape(target_class_ids, (-1,))
     mask_shape = tf.shape(target_masks)
-    target_masks = K.reshape(target_masks, (-1, mask_shape[2], mask_shape[3]))
+    target_masks = K.reshape(target_masks, (-1, mask_shape[2], mask_shape[3])) #[N, height, width]
     pred_shape = tf.shape(pred_masks)
     pred_masks = K.reshape(pred_masks,
-                           (-1, pred_shape[2], pred_shape[3], pred_shape[4]))
+                           (-1, pred_shape[2], pred_shape[3], pred_shape[4])) #[N, height, width, num_classes]
     # Permute predicted masks to [N, num_classes, height, width]
-    pred_masks = tf.transpose(pred_masks, [0, 3, 1, 2])
+    pred_masks = tf.transpose(pred_masks, [0, 3, 1, 2]) 
 
     # Only positive ROIs contribute to the loss. And only
     # the class specific mask of each ROI.
     positive_ix = tf.where(target_class_ids > 0)[:, 0]
     positive_class_ids = tf.cast(
-        tf.gather(target_class_ids, positive_ix), tf.int64)
-    indices = tf.stack([positive_ix, positive_class_ids], axis=1)
+        tf.gather(target_class_ids, positive_ix), tf.int64) # 객체 인것에 대한 GT class id를 구한다.
+    indices = tf.stack([positive_ix, positive_class_ids], axis=1) #예측한 객체의 인덱스를 구한다.
 
     # Gather the masks (predicted and true) that contribute to loss
     y_true = tf.gather(target_masks, positive_ix)
@@ -2052,16 +2052,47 @@ class MaskRCNN():
             output_rois = KL.Lambda(lambda x: x * 1, name="output_rois")(rois)
 
             # Losses
-            rpn_class_loss = KL.Lambda(lambda x: rpn_class_loss_graph(*x), name="rpn_class_loss")(
-                [input_rpn_match, rpn_class_logits])
-            rpn_bbox_loss = KL.Lambda(lambda x: rpn_bbox_loss_graph(config, *x), name="rpn_bbox_loss")(
-                [input_rpn_bbox, input_rpn_match, rpn_bbox])
-            class_loss = KL.Lambda(lambda x: mrcnn_class_loss_graph(*x), name="mrcnn_class_loss")(
-                [target_class_ids, mrcnn_class_logits, active_class_ids])
-            bbox_loss = KL.Lambda(lambda x: mrcnn_bbox_loss_graph(*x), name="mrcnn_bbox_loss")(
-                [target_bbox, target_class_ids, mrcnn_bbox])
-            mask_loss = KL.Lambda(lambda x: mrcnn_mask_loss_graph(*x), name="mrcnn_mask_loss")(
-                [target_mask, target_class_ids, mrcnn_mask])
+            class NClassLoss1(KL.Layer):
+                def __init__(self, dele, name="loss1", **kwargs):
+                    super(NClassLoss1, self).__init__(name=name, **kwargs)
+                    self.dele=dele
+                def call(self, *x):
+                    return self.dele(x[0],x[1])
+            class NClassLoss2(KL.Layer):
+                def __init__(self, dele, name="loss1", **kwargs):
+                    super(NClassLoss2, self).__init__(name=name, **kwargs)
+                    self.dele=dele
+                def call(self, *x):
+                    return self.dele(x[0],x[1],x[2])
+
+            class NClassLoss3(KL.Layer):
+                def __init__(self, dele, config=config, name="loss1", **kwargs):
+                    super(NClassLoss3, self).__init__(name=name, **kwargs)
+                    self.dele=dele
+                def call(self,config, *x):
+                    return self.dele(config,x[0],x[1],x[2])
+            
+            #rpn_class_loss = KL.Lambda(lambda x: rpn_class_loss_graph(*x), name="rpn_class_loss")(
+            #    [input_rpn_match, rpn_class_logits])
+            # *x는 가변이수이다.
+            rpn_class_loss = NClassLoss1(dele=rpn_class_loss_graph,name="rpn_class_loss")([input_rpn_match,rpn_class_logits])
+
+            #rpn_bbox_loss = KL.Lambda(lambda x: rpn_bbox_loss_graph(config, *x), name="rpn_bbox_loss")(
+            #    [input_rpn_bbox, input_rpn_match, rpn_bbox])
+            rpn_bbox_loss = NClassLoss3(dele=rpn_bbox_loss_graph, config=config, name="rpn_bbox_loss")([input_rpn_bbox, input_rpn_match, rpn_bbox])
+            
+            #class_loss = KL.Lambda(lambda x: mrcnn_class_loss_graph(*x), name="mrcnn_class_loss")(
+            #    [target_class_ids, mrcnn_class_logits, active_class_ids])
+            class_loss = NClassLoss2(dele=mrcnn_class_loss_graph,name="mrcnn_class_loss")([target_class_ids, mrcnn_class_logits, active_class_ids])
+            
+            #bbox_loss = KL.Lambda(lambda x: mrcnn_bbox_loss_graph(*x), name="mrcnn_bbox_loss")(
+            #    [target_bbox, target_class_ids, mrcnn_bbox])
+
+            bbox_loss = NClassLoss2(dele=mrcnn_bbox_loss_graph,name="mrcnn_bbox_loss")([target_bbox, target_class_ids, mrcnn_bbox]) 
+            
+            #mask_loss = KL.Lambda(lambda x: mrcnn_mask_loss_graph(*x), name="mrcnn_mask_loss")(
+            #    [target_mask, target_class_ids, mrcnn_mask])
+            mask_loss = NClassLoss2(dele=mrcnn_mask_loss_graph,name="mrcnn_mask_loss")([target_mask, target_class_ids, mrcnn_mask]) 
 
             # Model
             inputs = [input_image, input_image_meta,
@@ -2072,7 +2103,7 @@ class MaskRCNN():
                        mrcnn_class_logits, mrcnn_class, mrcnn_bbox, mrcnn_mask,
                        rpn_rois, output_rois,
                        rpn_class_loss, rpn_bbox_loss, class_loss, bbox_loss, mask_loss]
-            model = KM.Model(inputs, outputs, name='mask_rcnn')
+            model = KM.Model(inputs, outputs, name='mask_rcnn') #KM keras model
         else:
             # Network Heads
             # Proposal classifier and BBox regressor heads
@@ -2745,7 +2776,8 @@ class MaskRCNN():
 
         # Build a Keras function to run parts of the computation graph
         inputs = model.inputs
-        if model.uses_learning_phase and not isinstance(K.learning_phase(), int):
+        if not isinstance(K.learning_phase(), int):
+        #if model.uses_learning_phase and not isinstance(K.learning_phase(), int):
             inputs += [K.learning_phase()]
         kf = K.function(model.inputs, list(outputs.values()))
 
@@ -2763,7 +2795,8 @@ class MaskRCNN():
         model_in = [molded_images, image_metas, anchors]
 
         # Run inference
-        if model.uses_learning_phase and not isinstance(K.learning_phase(), int):
+        if not isinstance(K.learning_phase(), int):
+        #if model.uses_learning_phase and not isinstance(K.learning_phase(), int):
             model_in.append(0.)
         outputs_np = kf(model_in)
 
