@@ -2056,21 +2056,22 @@ class MaskRCNN():
                 def __init__(self, dele, name="loss1", **kwargs):
                     super(NClassLoss1, self).__init__(name=name, **kwargs)
                     self.dele=dele
-                def call(self, *x):
-                    return self.dele(x[0],x[1])
+                def call(self, inputs):
+                    return self.dele(inputs[0],inputs[1])
             class NClassLoss2(KL.Layer):
-                def __init__(self, dele, name="loss1", **kwargs):
+                def __init__(self, dele, name="loss2", **kwargs):
                     super(NClassLoss2, self).__init__(name=name, **kwargs)
                     self.dele=dele
-                def call(self, *x):
-                    return self.dele(x[0],x[1],x[2])
+                def call(self, inputs):
+                    return self.dele(inputs[0],inputs[1],inputs[2])
 
             class NClassLoss3(KL.Layer):
-                def __init__(self, dele, config=config, name="loss1", **kwargs):
+                def __init__(self, dele, config=config, name="loss3", **kwargs):
                     super(NClassLoss3, self).__init__(name=name, **kwargs)
                     self.dele=dele
-                def call(self,config, *x):
-                    return self.dele(config,x[0],x[1],x[2])
+                    self.config=config
+                def call(self, input):
+                    return self.dele(self.config,input[0],input[1],input[2])
             
             #rpn_class_loss = KL.Lambda(lambda x: rpn_class_loss_graph(*x), name="rpn_class_loss")(
             #    [input_rpn_match, rpn_class_logits])
@@ -2253,12 +2254,11 @@ class MaskRCNN():
             layer = self.keras_model.get_layer(name)
 #            loss = tf.reduce_mean(layer.output, keepdims=True) * self.config.LOSS_WEIGHTS.get(name, 1.)
 #            self.keras_model.add_loss(loss)
-#            if layer.output in self.keras_model.losses:
-#                continue
+            if layer.output in self.keras_model.losses:
+                continue
             loss = (
                 tf.reduce_mean(layer.output, keepdims=True)
                 * self.config.LOSS_WEIGHTS.get(name, 1.))
-
             self.keras_model.add_loss(loss)
 
         # Add L2 Regularization
