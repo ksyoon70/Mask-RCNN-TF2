@@ -75,7 +75,7 @@ def compute_backbone_shapes(config, image_shape):
     Returns:
         [N, (height, width)]. Where N is the number of stages
     """
-    if callable(config.BACKBONE):
+    if callable(config.BACKBONE): # BACKBONE = "resnet101"
         return config.COMPUTE_BACKBONE_SHAPE(image_shape)
 
     # Currently supports ResNet only
@@ -83,7 +83,7 @@ def compute_backbone_shapes(config, image_shape):
     return np.array(
         [[int(math.ceil(image_shape[0] / stride)),
             int(math.ceil(image_shape[1] / stride))]
-            for stride in config.BACKBONE_STRIDES])
+            for stride in config.BACKBONE_STRIDES]) #BACKBONE_STRIDES = [4, 8, 16, 32, 64]
 
 
 ############################################################
@@ -1895,6 +1895,7 @@ class MaskRCNN():
                             "For example, use 256, 320, 384, 448, 512, ... etc. ")
 
         # Inputs
+        # input_image의 shape는 1개 차원이 늘어난다. 아마도 batch 차원이 늘어나는 것 같음. shape (None, None, None, 3)
         input_image = KL.Input(
             shape=[None, None, config.IMAGE_SHAPE[2]], name="input_image")
         input_image_meta = KL.Input(shape=[config.IMAGE_META_SIZE],
@@ -2685,6 +2686,7 @@ class MaskRCNN():
 
     def get_anchors(self, image_shape):
         """Returns anchor pyramid for the given image size."""
+        #backbone_shape = array([[256, 256], [128, 128], [ 64, 64], [ 32, 32], [ 16, 16]])
         backbone_shapes = compute_backbone_shapes(self.config, image_shape)
         # Cache anchors and reuse if image shape is the same
         if not hasattr(self, "_anchor_cache"):
