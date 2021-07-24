@@ -387,24 +387,26 @@ class PyramidROIAlign(KE.Layer):
         # Equation 1 in the Feature Pyramid Networks paper. Account for
         # the fact that our coordinates are normalized here.
         # e.g. a 224x224 ROI (in pixels) maps to P4
+        # rois 박스가 P4 ~ P1까지에서 어디에 있는지 확인한다.
         image_area = tf.cast(image_shape[0] * image_shape[1], tf.float32)
         roi_level = log2_graph(tf.sqrt(h * w) / (224.0 / tf.sqrt(image_area)))  #tf.sqrt(image_area)가 붙은 것은 영상의 크기로 normalization 된 것을 해제 하기 위함으로 보인다.
         roi_level = tf.minimum(5, tf.maximum(
             2, 4 + tf.cast(tf.round(roi_level), tf.int32))) # k= [k_0 + log_2(sqr(wh)/244)] k_0는 P4
-        roi_level = tf.squeeze(roi_level, 2) # 피라미드 인덱스를 구한다.
+        roi_level = tf.squeeze(roi_level, 2) # 피라미드 인덱스를 구한다. axis 2가 1이면 삭제한다. [N, M] 형태가 된다.
 
         # Loop through levels and apply ROI pooling to each. P2 to P5.
         pooled = []
         box_to_level = []
-        for i, level in enumerate(range(2, 6)):
+        for i, level in enumerate(range(2, 6)): #level은 2에서 5까지 i는 0 ~ 3
             ix = tf.where(tf.equal(roi_level, level)) #조건이 맞으면 인덱스 리턴
             level_boxes = tf.gather_nd(boxes, ix)  #Gather slices from params into a Tensor with shape specified by indices. boxes에서 ix 인덱스에 해당 값만 가져온다.
+            # 같은 인덱스끼리의 박스를 묶는다.
 
             # Box indices for crop_and_resize.
-            box_indices = tf.cast(ix[:, 0], tf.int32)
+            box_indices = tf.cast(ix[:, 0], tf.int32) #같은 level의 box 인덱스를 int32로 캐스팅 crop 할때 인덱스로 쓸려고 만듬. 1차원 텐서
 
             # Keep track of which box is mapped to which level
-            box_to_level.append(ix)
+            box_to_level.append(ix) #같은 박스 인덱스끼리 추가 1개 일수도 있고 N개 일수도 있다.
 
             # Stop gradient propogation to ROI proposals
             level_boxes = tf.stop_gradient(level_boxes) #그레디언트 계산에서 값 고정
@@ -428,20 +430,21 @@ class PyramidROIAlign(KE.Layer):
 
         # Pack box_to_level mapping into one array and add another
         # column representing the order of pooled boxes
-        box_to_level = tf.concat(box_to_level, axis=0) # 박스를 위에서 아래로 정렬..
-        box_range = tf.expand_dims(tf.range(tf.shape(box_to_level)[0]), 1) #tf.shape(box_to_level)[0] box 갯수
-        box_to_level = tf.concat([tf.cast(box_to_level, tf.int32), box_range], #한개의 축을 늘인다.
+        box_to_level = tf.concat(box_to_level, axis=0) # P2 ~ P5까지 끝나면.. 순서 대로 정렬 [ [P2], [P2], [P3],...[P5] ] 이런식의 인덱스..
+        box_range = tf.expand_dims(tf.range(tf.shape(box_to_level)[0]), 1) #tf.shape(box_to_level)[0] 박스 갯수 0 ~ N개 [[0],[1],...[N-1]]
+        # box_range shape=(4, 1) [[0],[1],[2],[3]]
+        box_to_level = tf.concat([tf.cast(box_to_level, tf.int32), box_range], #한개의 축을 늘인다. [[P2,0],[[P2,2],...[P5,N-1]] 여기서 P2는 P2의 인덱스이다.
                                  axis=1)
 
         # Rearrange pooled features to match the order of the original boxes
         # Sort box_to_level by batch then box index
         # TF doesn't have a way to sort by two columns, so merge them and sort.
-        # 이해가 잘 안되는 부분인데... 테스트 필요 by 윤경섭
-        sorting_tensor = box_to_level[:, 0] * 100000 + box_to_level[:, 1]
+        # 이해가 잘 안되는 부분인데... P2부터 소팅해서 P5까지 순서 대로 인덱스를 sort 하는것으로 보임.
+        sorting_tensor = box_to_level[:, 0] * 100000 + box_to_level[:, 1] # 0+0, 300000+1, 300000+2, 500000+3... = 0,300001,300002,500003 이런 식이 된다.
         ix = tf.nn.top_k(sorting_tensor, k=tf.shape(  #k 갯수만큼 큰것 부터 소팅 한다.
-            box_to_level)[0]).indices[::-1]
+            box_to_level)[0]).indices[::-1] # 순서를 바꿈. P2 ~ P5 순으로 인덱싱을 함.
         ix = tf.gather(box_to_level[:, 2], ix) #인덱스(ix)에 따라 파라미터(box_to_level[:,2]로 부터 슬라이싱을 한다. 
-        pooled = tf.gather(pooled, ix)
+        pooled = tf.gather(pooled, ix) 
 
         # Re-add the batch dimension
         shape = tf.concat([tf.shape(boxes)[:2], tf.shape(pooled)[1:]], axis=0) #[:2] 2는 빠지는 것임 tf.shape(boxes)[:2]는 [batch, num_boxes 가 되고 tf.shape(pooled)[1:] pool_height, pool_width, channels] 
@@ -556,28 +559,28 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     positive_count = int(config.TRAIN_ROIS_PER_IMAGE *
                          config.ROI_POSITIVE_RATIO)  # ROI_POSITIVE_RATIO = 0.33 * TRAIN_ROIS_PER_IMAGE = 200 => 66개 = positive_count
     positive_indices = tf.random.shuffle(positive_indices)[:positive_count] # postitive 인덱스를 랜덤하게 66개만 선택한다.
-    positive_count = tf.shape(positive_indices)[0]
+    positive_count = tf.shape(positive_indices)[0] #아마 positive_indices 1차원이고, [0]을 붙인 건 안전하게 하기 위해서 그런것이 아니가 생각한다.
     # Negative ROIs. Add enough to maintain positive:negative ratio.
     # 비슷하게 negative 비율을 계산하여 갯수와 인덱스를 구한다.
-    r = 1.0 / config.ROI_POSITIVE_RATIO
-    negative_count = tf.cast(r * tf.cast(positive_count, tf.float32), tf.int32) - positive_count
+    r = 1.0 / config.ROI_POSITIVE_RATIO # r = 3.0
+    negative_count = tf.cast(r * tf.cast(positive_count, tf.float32), tf.int32) - positive_count #3*66 - 66 = 66*2 = 142
     negative_indices = tf.random.shuffle(negative_indices)[:negative_count]
     # Gather selected ROIs
-    positive_rois = tf.gather(proposals, positive_indices)
-    negative_rois = tf.gather(proposals, negative_indices)
+    positive_rois = tf.gather(proposals, positive_indices) # 66개중에 인덱스를 통해 임의의 positive ROI를 구한다.
+    negative_rois = tf.gather(proposals, negative_indices) # 142개중에 인덱스를 통해 임의의 negative ROI를 구한다.
 
     # Assign positive ROIs to GT boxes.
     # positive 인덱스에 해당하는 IOU만 따로 구한다.
     # IOU가 0보다 크면 가장 큰 것의 인덱스를 구한다.
     positive_overlaps = tf.gather(overlaps, positive_indices)
     roi_gt_box_assignment = tf.cond(
-        tf.greater(tf.shape(positive_overlaps)[1], 0),
-        true_fn = lambda: tf.argmax(positive_overlaps, axis=1),
+        tf.greater(tf.shape(positive_overlaps)[1], 0),  # positive_overlaps의 갯수가 0 이상이면 true_fn이 적용되고 아니면 false_fn 이 적용된다.
+        true_fn = lambda: tf.argmax(positive_overlaps, axis=1), #가장 큰 positive_overlaps가 발생하는 인덱스들을 리턴 [N,index]
         false_fn = lambda: tf.cast(tf.constant([]),tf.int64)
     )
-    #최대 값을 인덱스를 기반으로  해당 박스를 구한다.
+    #최대 값을 인덱스를 기반으로  해당 gt 박스를 구한다.
     roi_gt_boxes = tf.gather(gt_boxes, roi_gt_box_assignment)
-    #최대 값을 인덱스를 기반으로  해당 박스의 class를 구한다.
+    #최대 값을 인덱스를 기반으로  해당 박스의 gt class를 구한다.
     roi_gt_class_ids = tf.gather(gt_class_ids, roi_gt_box_assignment)
 
     # Compute bbox refinement for positive ROIs
@@ -605,11 +608,11 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
         x2 = (x2 - gt_x1) / gt_w
         boxes = tf.concat([y1, x1, y2, x2], 1)
     box_ids = tf.range(0, tf.shape(roi_masks)[0])
-    masks = tf.image.crop_and_resize(tf.cast(roi_masks, tf.float32), boxes,
+    masks = tf.image.crop_and_resize(tf.cast(roi_masks, tf.float32), boxes,  #tf.cast(roi_masks, tf.float32) 마스크 이미지에서 crop을 땀.
                                      box_ids,
-                                     config.MASK_SHAPE)
+                                     config.MASK_SHAPE) #config.MASK_SHAPE crop size
     # Remove the extra dimension from masks.
-    masks = tf.squeeze(masks, axis=3)
+    masks = tf.squeeze(masks, axis=3) #crop_and_resize 함수는 channel까지 나오므로 필요 없어서 삭제함.
 
     # Threshold mask pixels at 0.5 to have GT masks be 0 or 1 to use with
     # binary cross entropy loss.
@@ -617,11 +620,11 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
 
     # Append negative ROIs and pad bbox deltas and masks that
     # are not used for negative ROIs with zeros.
-    rois = tf.concat([positive_rois, negative_rois], axis=0)
-    N = tf.shape(negative_rois)[0]
-    P = tf.maximum(config.TRAIN_ROIS_PER_IMAGE - tf.shape(rois)[0], 0)
-    rois = tf.pad(rois, [(0, P), (0, 0)])
-    roi_gt_boxes = tf.pad(roi_gt_boxes, [(0, N + P), (0, 0)])
+    rois = tf.concat([positive_rois, negative_rois], axis=0) #positive_rois 아래에 negative_rois 가 붙는 형태가 된다.
+    N = tf.shape(negative_rois)[0]  # negative rois의 갯수
+    P = tf.maximum(config.TRAIN_ROIS_PER_IMAGE - tf.shape(rois)[0], 0) #  200 - 총갯수는 padding?
+    rois = tf.pad(rois, [(0, P), (0, 0)])  # 좌우로는 pad가 없고 rois 이후 pad를 P 만큼 추가 한다. 그래서 총 200개의 rois를 만든다.
+    roi_gt_boxes = tf.pad(roi_gt_boxes, [(0, N + P), (0, 0)]) # postive rois box 이후에 pad를 붙인다. 200개
     roi_gt_class_ids = tf.pad(roi_gt_class_ids, [(0, N + P)])
     deltas = tf.pad(deltas, [(0, N + P), (0, 0)])
     masks = tf.pad(masks, [[0, N + P], (0, 0), (0, 0)])
@@ -1993,7 +1996,7 @@ class MaskRCNN():
         # of outputs across levels.
         # e.g. [[a1, b1, c1], [a2, b2, c2]] => [[a1, a2], [b1, b2], [c1, c2]]
         output_names = ["rpn_class_logits", "rpn_class", "rpn_bbox"]
-        outputs = list(zip(*layer_outputs))
+        outputs = list(zip(*layer_outputs)) # layer_outputs 리스트의 아이템을 하나씩 풀어줌
         outputs = [KL.Concatenate(axis=1, name=n)(list(o))
                    for o, n in zip(outputs, output_names)]
 
@@ -2031,6 +2034,7 @@ class MaskRCNN():
             # Subsamples proposals and generates target outputs for training
             # Note that proposal class IDs, gt_boxes, and gt_masks are zero
             # padded. Equally, returned rois and targets are zero padded.
+            # target_bbox는 target delta box이다.
             rois, target_class_ids, target_bbox, target_mask =\
                 DetectionTargetLayer(config, name="proposal_targets")([
                     target_rois, input_gt_class_ids, gt_boxes, input_gt_masks])
@@ -2912,7 +2916,7 @@ def trim_zeros_graph(boxes, name='trim_zeros'):
     non_zeros: [N] a 1D boolean mask identifying the rows to keep
     박스에서 [0,0,0,0] 인 박스는 제거 하고 숫자가 있는 박스와 그 인덱스만을 구하여 리턴하는 함수
     """
-    non_zeros = tf.cast(tf.reduce_sum(tf.abs(boxes), axis=1), tf.bool)
+    non_zeros = tf.cast(tf.reduce_sum(tf.abs(boxes), axis=1), tf.bool) #박스의 각 4개 좌표를 더하면 어떤 값이 있으면 빈 박스가 아니다. 이걸 bool로 바꾸면 non_zero mask가 구해진다.
     boxes = tf.boolean_mask(boxes, non_zeros, name=name)
     return boxes, non_zeros
 
