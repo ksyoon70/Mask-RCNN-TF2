@@ -440,14 +440,14 @@ class PyramidROIAlign(KE.Layer):
         # Sort box_to_level by batch then box index
         # TF doesn't have a way to sort by two columns, so merge them and sort.
         # 이해가 잘 안되는 부분인데... P2부터 소팅해서 P5까지 순서 대로 인덱스를 sort 하는것으로 보임.
-        sorting_tensor = box_to_level[:, 0] * 100000 + box_to_level[:, 1] # 0+0, 300000+1, 300000+2, 500000+3... = 0,300001,300002,500003 이런 식이 된다.
+        sorting_tensor = box_to_level[:, 0] * 100000 + box_to_level[:, 1] #PN *100000 + index : 0+0, 300000+1, 300000+2, 500000+3... = 0,300001,300002,500003 이런 식이 된다.
         ix = tf.nn.top_k(sorting_tensor, k=tf.shape(  #k 갯수만큼 큰것 부터 소팅 한다.
             box_to_level)[0]).indices[::-1] # 순서를 바꿈. P2 ~ P5 순으로 인덱싱을 함.
-        ix = tf.gather(box_to_level[:, 2], ix) #인덱스(ix)에 따라 파라미터(box_to_level[:,2]로 부터 슬라이싱을 한다. 
-        pooled = tf.gather(pooled, ix) 
+        ix = tf.gather(box_to_level[:, 2], ix) #인덱스(ix)에 따라 파라미터(box_to_level[:,2]로 부터 슬라이싱을 한다. ix 그대로인가? 
+        pooled = tf.gather(pooled, ix) #ix 순서 즉 P2 ~ P5 순서때로 crop and resize된 박스 Pool을 구한다.
 
         # Re-add the batch dimension
-        shape = tf.concat([tf.shape(boxes)[:2], tf.shape(pooled)[1:]], axis=0) #[:2] 2는 빠지는 것임 tf.shape(boxes)[:2]는 [batch, num_boxes 가 되고 tf.shape(pooled)[1:] pool_height, pool_width, channels] 
+        shape = tf.concat([tf.shape(boxes)[:2], tf.shape(pooled)[1:]], axis=0) #[:2] 2는 빠지는 것임 tf.shape(boxes)[:2]는 [batch, num_boxes] 가 되고 tf.shape(pooled)[1:] pool_height, pool_width, channels] 
         pooled = tf.reshape(pooled, shape)
         return pooled #  [batch, num_boxes, pool_height, pool_width, channels].
 
