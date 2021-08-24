@@ -1,0 +1,120 @@
+import os
+import xml.etree
+from numpy import zeros, asarray
+import sys
+
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+
+import mrcnn.utils
+import mrcnn.config
+import mrcnn.model
+import tensorflow as tf
+
+#GPU 사용시 풀어 놓을 것
+if tf.config.list_physical_devices('GPU') :
+	physical_devices = tf.config.experimental.list_physical_devices('GPU')
+	assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
+	config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
+	
+class KangarooDataset(mrcnn.utils.Dataset):
+
+	def load_dataset(self, dataset_dir, is_train=True):
+		self.add_class("dataset", 1, "kangaroo")
+
+		images_dir = os.path.join(dataset_dir,'images') #dataset_dir + '/images/'
+		annotations_dir = os.path.join(dataset_dir,'annots') #dataset_dir + '/annots/'
+
+		for filename in os.listdir(images_dir):
+			image_id = filename[:-4]
+
+			if image_id in ['00090']:
+				continue
+
+			if is_train and int(image_id) >= 150:
+				continue
+
+			if not is_train and int(image_id) < 150:
+				continue
+
+			img_path = images_dir + filename
+			ann_path = annotations_dir + image_id + '.xml'
+
+			self.add_image('dataset', image_id=image_id, path=img_path, annotation=ann_path)
+
+	# extract bounding boxes from an annotation file
+	def extract_boxes(self, filename):
+		tree = xml.etree.ElementTree.parse(filename)
+
+		root = tree.getroot()
+
+		boxes = list()
+		for box in root.findall('.//bndbox'):
+			xmin = int(box.find('xmin').text)
+			ymin = int(box.find('ymin').text)
+			xmax = int(box.find('xmax').text)
+			ymax = int(box.find('ymax').text)
+			coors = [xmin, ymin, xmax, ymax]
+			boxes.append(coors)
+
+		width = int(root.find('.//size/width').text)
+		height = int(root.find('.//size/height').text)
+		return boxes, width, height
+
+	# load the masks for an image
+	def load_mask(self, image_id):
+		info = self.image_info[image_id]
+		path = info['annotation']
+		boxes, w, h = self.extract_boxes(path)
+		masks = zeros([h, w, len(boxes)], dtype='uint8')
+
+		class_ids = list()
+		for i in range(len(boxes)):
+			box = boxes[i]
+			row_s, row_e = box[1], box[3]
+			col_s, col_e = box[0], box[2]
+			masks[row_s:row_e, col_s:col_e, i] = 1
+			class_ids.append(self.class_names.index('kangaroo'))
+		return masks, asarray(class_ids, dtype='int32')
+
+class KangarooConfig(mrcnn.config.Config):
+    NAME = "kangaroo_cfg"
+
+    GPU_COUNT = 1
+    IMAGES_PER_GPU = 1
+    
+    NUM_CLASSES = 2
+
+    STEPS_PER_EPOCH = 131
+
+# prepare train set
+train_set = KangarooDataset()
+dataset_dir = os.path.join(os.path.dirname(__file__),'kangaroo')
+train_set.load_dataset(dataset_dir=dataset_dir, is_train=True)
+train_set.prepare()
+
+# prepare test/val set
+valid_dataset = KangarooDataset()
+valid_dataset.load_dataset(dataset_dir=dataset_dir, is_train=False)
+valid_dataset.prepare()
+
+# prepare config
+kangaroo_config = KangarooConfig()
+model_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))),'mrcnn')
+# define the model
+model = mrcnn.model.MaskRCNN(mode='training', 
+                             model_dir=model_dir, 
+                             config=kangaroo_config)
+
+mrcnn_weight_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))),'mask_rcnn_coco.h5')
+model.load_weights(filepath=mrcnn_weight_dir, 
+                   by_name=True, 
+                   exclude=["mrcnn_class_logits", "mrcnn_bbox_fc",  "mrcnn_bbox", "mrcnn_mask"])
+
+model.train(train_dataset=train_set, 
+            val_dataset=valid_dataset, 
+            learning_rate=kangaroo_config.LEARNING_RATE, 
+            epochs=1, 
+            layers='heads')
+
+model_path = 'Kangaro_mask_rcnn_trained.h5'
+model.keras_model.save_weights(model_path)

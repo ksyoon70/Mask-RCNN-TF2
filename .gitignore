@@ -59,3 +59,5 @@ ENV/
 # 윤경섭 추가
 *.bak
 .spyproject/*
+/car-plate-learning/BMT_image
+/car-plate-learning/TEST_image

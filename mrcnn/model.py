@@ -1705,7 +1705,12 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
 
     # Anchors
     # [anchor_count, (y1, x1, y2, x2)]
-    backbone_shapes = compute_backbone_shapes(config, config.IMAGE_SHAPE)
+    #backbone_shapes = array([[256, 256],
+    #   [128, 128],
+    #   [ 64,  64],
+    #   [ 32,  32],
+    #   [ 16,  16]])
+    backbone_shapes = compute_backbone_shapes(config, config.IMAGE_SHAPE) # 스트라이드로 나눈 np.array를 반환한다.
     anchors = utils.generate_pyramid_anchors(config.RPN_ANCHOR_SCALES,
                                              config.RPN_ANCHOR_RATIOS,
                                              backbone_shapes,
