@@ -9,7 +9,7 @@ import os
 # CLASS_NAMES = open("coco_labels.txt").read().strip().split("\n")
 
 #CLASS_NAMES = ['BG', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush']
-CLASS_NAMES = ['BG','kangaro']
+CLASS_NAMES = ['BG','car','plate']
 class SimpleConfig(mrcnn.config.Config):
     # Give the configuration a recognizable name
     NAME = "coco_inference"
@@ -28,10 +28,10 @@ model = mrcnn.model.MaskRCNN(mode="inference",
                              model_dir=os.getcwd())
 
 # Load the weights into the model.
-model.load_weights(filepath="Kangaro_mask_rcnn_trained.h5", 
+model.load_weights(filepath="CarPlate_mask_rcnn_trained.h5", 
                    by_name=True)
 
-dataset_dir = os.path.join(os.path.dirname(__file__),'kangaroo')
+dataset_dir = os.path.join(os.path.dirname(__file__),'car-plate')
 images_dir = os.path.join(dataset_dir,'images') #dataset_dir + '/images/'
 
 

@@ -1,4 +1,5 @@
 import os
+import os, shutil
 import xml.etree
 from numpy import zeros, asarray
 import sys
@@ -16,13 +17,20 @@ if tf.config.list_physical_devices('GPU') :
 	assert len(physical_devices) > 0, "Not enough GPU hardware devices available"
 	config = tf.config.experimental.set_memory_growth(physical_devices[0], True)
 	
-class KangarooDataset(mrcnn.utils.Dataset):
+class CarPlateDataset(mrcnn.utils.Dataset):
 
 	def load_dataset(self, dataset_dir, is_train=True):
-		self.add_class("dataset", 1, "kangaroo")
+		self.add_class("dataset", 1, "car")
+		self.add_class("dataset", 2, "plate")
 
 		images_dir = os.path.join(dataset_dir,'images') #dataset_dir + '/images/'
+		#디렉토리가 없으면 생성한다.
+		if not os.path.isdir(images_dir):
+			os.mkdir(images_dir)
+		
 		annotations_dir = os.path.join(dataset_dir,'annots') #dataset_dir + '/annots/'
+		if not os.path.isdir(annotations_dir):
+			os.mkdir(annotations_dir)
 
 		for filename in os.listdir(images_dir):
 			image_id = filename[:-4]
@@ -76,34 +84,34 @@ class KangarooDataset(mrcnn.utils.Dataset):
 			class_ids.append(self.class_names.index('kangaroo'))
 		return masks, asarray(class_ids, dtype='int32')
 
-class KangarooConfig(mrcnn.config.Config):
-    NAME = "kangaroo_cfg"
+class CarPlateConfig(mrcnn.config.Config):
+    NAME = "carplate_cfg"
 
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
     
-    NUM_CLASSES = 2
+    NUM_CLASSES = 3
 
     STEPS_PER_EPOCH = 131
 
 # prepare train set
-train_set = KangarooDataset()
-dataset_dir = os.path.join(os.path.dirname(__file__),'kangaroo')
+train_set = CarPlateDataset()
+dataset_dir = os.path.join(os.path.dirname(__file__),'car-plate')
 train_set.load_dataset(dataset_dir=dataset_dir, is_train=True)
 train_set.prepare()
 
 # prepare test/val set
-valid_dataset = KangarooDataset()
+valid_dataset = CarPlateDataset()
 valid_dataset.load_dataset(dataset_dir=dataset_dir, is_train=False)
 valid_dataset.prepare()
 
 # prepare config
-kangaroo_config = KangarooConfig()
+car-plate_config = CarPlateConfig()
 model_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))),'mrcnn')
 # define the model
 model = mrcnn.model.MaskRCNN(mode='training', 
                              model_dir=model_dir, 
-                             config=kangaroo_config)
+                             config=car-plate_config)
 
 mrcnn_weight_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))),'mask_rcnn_coco.h5')
 model.load_weights(filepath=mrcnn_weight_dir, 
@@ -112,9 +120,9 @@ model.load_weights(filepath=mrcnn_weight_dir,
 
 model.train(train_dataset=train_set, 
             val_dataset=valid_dataset, 
-            learning_rate=kangaroo_config.LEARNING_RATE, 
+            learning_rate=car-plate_config.LEARNING_RATE, 
             epochs=1, 
             layers='heads')
 
-model_path = 'Kangaro_mask_rcnn_trained.h5'
+model_path = 'CarPlate_mask_rcnn_trained.h5'
 model.keras_model.save_weights(model_path)
