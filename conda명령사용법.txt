@@ -43,22 +43,22 @@ Ubuntu 에서는 다음과 같습니다.
 
 5. 다른 사람에게도 똑같은 가상환경 전수하기
 
-> conda env export > conda_requirements.txt
+> conda env export > conda_requirements.yml
 
 이렇게 만들어둔 requirements.,txt 를 다른사람이 github 로 부터 받는다면
 
 그 사람은 다음과 같은 명령어로 동일한 환경의 가상환경을 구축할 수 있습니다.
 
-> conda env create -f conda_requirements.txt
+> conda env create -f conda_requirements.yml
 
 
 6. pip install 내용만 전달하기
 
-> pip freeze > requirements.txt
+> pip freeze --export > requirements.yml
 
 이렇게 만들어진 파일을 github 에서 받는다면, 받는쪽에서는
 
-> pip install -r requirements.txt
+> pip install -r requirements.yml
 
 로 동일한 pip 환경을 구축할 수 있습니다.
 
