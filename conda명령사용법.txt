@@ -1,0 +1,81 @@
+1,. 가상환경 만들기
+
+cmd 창을 엽니다.
+
+> conda create -n venvPython35 python=3.5
+
+이렇게하면, 3.5 버전의 파이썬과 함께 venvPython35 라는 이름으로 가상환경이 만들어집니다.
+
+이를 활성화(Activate) 하는 방법은 다음과 같습니다.
+
+> activate venvPython35
+
+Ubuntu 에서는 다음과 같습니다.
+
+> source activate venvPython35
+
+
+2. 라이브러리 다운받기
+
+가상환경을 활성화 시킨 뒤에는 일반적으로 라이브러리 다운받듯이 pip 를 사용하시면 됩니다.
+
+> pip install <<...>>
+
+하지만 Windows 와 같은 경우 scipy 같은 라이브러리는 그냥 pip 로 깔리지가 않습니다.
+
+이럴때는 conda 의 힘을 빌립니다.
+
+> conda install <<...>>
+
+이 과정에서 빌드에 필요한 다른 바이너리 파일들도 함께 다운받아 빌드까지 진행합니다. 굉장히 똑똑합니다.
+
+
+
+3. 현재 본 가상환경에 깔려있는 라이브러리 버전들을 확인하기
+
+> conda list
+
+
+4. 현 아나콘다의 가상환경들의 리스트 전부 보기
+
+> conda env list
+
+
+5. 다른 사람에게도 똑같은 가상환경 전수하기
+
+> conda env export > conda_requirements.txt
+
+이렇게 만들어둔 requirements.,txt 를 다른사람이 github 로 부터 받는다면
+
+그 사람은 다음과 같은 명령어로 동일한 환경의 가상환경을 구축할 수 있습니다.
+
+> conda env create -f conda_requirements.txt
+
+
+6. pip install 내용만 전달하기
+
+> pip freeze > requirements.txt
+
+이렇게 만들어진 파일을 github 에서 받는다면, 받는쪽에서는
+
+> pip install -r requirements.txt
+
+로 동일한 pip 환경을 구축할 수 있습니다.
+
+
+7. conda 환경 삭제
+
+deactivate 로 환경에서 나온뒤에 삭제하고자 하는 환경의 이름을 -n 옵션과 함께 주면 됩니다.
+
+> conda env remove -n venvTest
+
+
+
+몇가지가 더 있을지는 모르겠으나, 아나콘다를 사용하는데 있어서 필수적인 몇가지를 정리하였습니다.
+
+누군가에게 도움이 되었길 바랍니다.
+
+감사합니다.
+
+
+출처: https://ljs93kr.tistory.com/78 [건프의 소소한 개발이야기]
