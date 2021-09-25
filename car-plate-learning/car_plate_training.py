@@ -93,15 +93,26 @@ class CarPlateDataset(mrcnn.utils.Dataset):
 			class_ids.append(self.class_names.index(cls_names[i])) # car plate2종류가 있으므로 약간 수정
 		return masks, asarray(class_ids, dtype='int32')
 
-class CarPlateConfig(mrcnn.config.Config):
-	NAME = "carplate_cfg"
+	def get_class_len(self):
+		return len(self.class_info)
 
+	def get_image_len(self):
+		return len(self.image_info)
+
+class CarPlateConfig(mrcnn.config.Config):
+
+	NUM_CLASSES = 3
+	NAME = "carplate_cfg"
 	GPU_COUNT = 1
 	IMAGES_PER_GPU = 1
-	
-	NUM_CLASSES = 3
-
 	STEPS_PER_EPOCH = 131
+	EPOCHS = 10  #epochs 설정
+
+	def __init__(self, dataset) :
+		super(CarPlateConfig, self).__init__()
+		CarPlateConfig.NUM_CLASSES = dataset.get_class_len()  # train set에서의 class 갯수
+		CarPlateConfig.STEPS_PER_EPOCH = dataset.get_image_len() # train set에서의 영상 갯수
+
 
 # prepare train set
 train_set = CarPlateDataset()
@@ -134,7 +145,7 @@ else :
     quit()
 
 # prepare config
-car_plate_config = CarPlateConfig()
+car_plate_config = CarPlateConfig(train_set)
 model_dir = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))),'mrcnn')
 # define the model
 model = mrcnn.model.MaskRCNN(mode='training', 
@@ -149,7 +160,7 @@ model.load_weights(filepath=mrcnn_weight_dir,
 model.train(train_dataset=train_set, 
 			val_dataset=valid_dataset, 
 			learning_rate=car_plate_config.LEARNING_RATE, 
-			epochs=1, 
+			epochs=car_plate_config.EPOCHS, 
 			layers='heads')
 
 model_path = 'CarPlate_mask_rcnn_trained.h5'
