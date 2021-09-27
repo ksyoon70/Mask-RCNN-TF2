@@ -36,13 +36,13 @@ class KangarooDataset(mrcnn.utils.Dataset):
 			if not is_train and int(image_id) < 150:
 				continue
 
-			img_path = images_dir + filename
-			ann_path = annotations_dir + image_id + '.xml'
+			img_path = os.path.join(images_dir, filename)
+			ann_path = os.path.join(annotations_dir , image_id + '.xml')
 
 			self.add_image('dataset', image_id=image_id, path=img_path, annotation=ann_path)
 
 	# extract bounding boxes from an annotation file
-	def extract_boxes(self, filename):
+	def extract_boxes(self, filename): #xml 파일을 읽는 함수.
 		tree = xml.etree.ElementTree.parse(filename)
 
 		root = tree.getroot()

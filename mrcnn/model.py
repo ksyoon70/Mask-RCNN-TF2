@@ -1251,7 +1251,7 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None,
     if augment:
         logging.warning("'augment' is deprecated. Use 'augmentation' instead.")
         if random.randint(0, 1):
-            image = np.fliplr(image)
+            image = np.fliplr(image) #좌우 반전
             mask = np.fliplr(mask)
 
     # Augmentation
@@ -1711,11 +1711,11 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
     #   [ 32,  32],
     #   [ 16,  16]])
     backbone_shapes = compute_backbone_shapes(config, config.IMAGE_SHAPE) # 스트라이드로 나눈 np.array를 반환한다.
-    anchors = utils.generate_pyramid_anchors(config.RPN_ANCHOR_SCALES,
-                                             config.RPN_ANCHOR_RATIOS,
+    anchors = utils.generate_pyramid_anchors(config.RPN_ANCHOR_SCALES, # RPN_ANCHOR_SCALES = (32, 64, 128, 256, 512)  픽셀 크기
+                                             config.RPN_ANCHOR_RATIOS, #RPN_ANCHOR_RATIOS = [0.5, 1, 2]
                                              backbone_shapes,
-                                             config.BACKBONE_STRIDES,
-                                             config.RPN_ANCHOR_STRIDE)
+                                             config.BACKBONE_STRIDES, #BACKBONE_STRIDES = [4, 8, 16, 32, 64]
+                                             config.RPN_ANCHOR_STRIDE) #    RPN_ANCHOR_STRIDE = 1
 
     # Keras requires a generator to run indefinitely.
     while True:
@@ -2845,7 +2845,7 @@ def compose_image_meta(image_id, original_image_shape, image_shape,
         [scale] +                     # size=1
         list(active_class_ids)        # size=num_classes
     )
-    return meta
+    return meta # array 형태로 meta 데이터가 생성 된다. [image_id, original_image_shape... ]
 
 
 def parse_image_meta(meta):
