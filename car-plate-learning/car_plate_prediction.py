@@ -13,7 +13,7 @@ import skimage.transform
 # CLASS_NAMES = open("coco_labels.txt").read().strip().split("\n")
 
 #CLASS_NAMES = ['BG', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush']
-CLASS_NAMES = ['BG','car','plate']
+CLASS_NAMES = ['BG','car','plate','kangaroo']
 class SimpleConfig(mrcnn.config.Config):
     # Give the configuration a recognizable name
     NAME = "coco_inference"
@@ -52,24 +52,31 @@ if not os.path.isdir(images_dir):
 for filename in os.listdir(images_dir):
 	# load the input image, convert it from BGR to RGB channel
 	image_path = os.path.join(images_dir,filename)
+	#image_path = images_dir + filename
 	#image_path = image_path.replace('\\','//')
 	#image = plt.imread(image_path)
-	#image = cv2.imread(image_path,cv2.IMREAD_COLOR)
-	image = skimage.io.imread(image_path)
-	if image.ndim != 3:
-		image = skimage.color.gray2rgb(image)
-	#image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-	# Perform a forward pass of the network to obtain the results
-	r = model.detect([image], verbose=0)
-    
-    # Get the results for the first image.
-	r = r[0]
-    
-	# Visualize the detected objects.
-	mrcnn.visualize.display_instances(image=image, 
-                                      boxes=r['rois'], 
-                                      masks=r['masks'], 
-                                      class_ids=r['class_ids'], 
-                                      class_names=CLASS_NAMES, 
-                                      scores=r['scores'])
+	if os.path.exists(image_path) :
+		image = cv2.imread(image_path)
+		image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+		# Perform a forward pass of the network to obtain the results
+		r = model.detect([image], verbose=0)
+		
+		# Get the results for the first image.
+		r = r[0]
+		
+		# Visualize the detected objects.
+		mrcnn.visualize.display_instances(image=image, 
+										boxes=r['rois'], 
+										masks=r['masks'], 
+										class_ids=r['class_ids'], 
+										class_names=CLASS_NAMES, 
+										scores=r['scores'])
+	else :
+		print('image path : {} is not exist!'.format(image_path))
+	
+	#image = skimage.io.imread(image_path)
+	#if image.ndim != 3:
+	#	image = skimage.color.gray2rgb(image)
+
+	

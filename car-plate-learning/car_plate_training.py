@@ -19,9 +19,13 @@ if tf.config.list_physical_devices('GPU') :
 	
 class CarPlateDataset(mrcnn.utils.Dataset):
 
+	def __init__(self, class_map=None):
+		super(CarPlateDataset,self).__init__(class_map=class_map)
+
 	def load_dataset(self, dataset_dir, is_train=True):
 		self.add_class("dataset", 1, "car")
 		self.add_class("dataset", 2, "plate")
+		self.add_class("dataset", 3, "kangaroo")
 
 		images_dir = os.path.join(dataset_dir,'images') #dataset_dir + '/images/'
 		#디렉토리가 없으면 생성한다.
@@ -38,7 +42,7 @@ class CarPlateDataset(mrcnn.utils.Dataset):
 		if image_files_cnt == ann_files_cnt  and (image_files_cnt != 0 or ann_files_cnt !=0):
 			image_filenames = os.listdir(images_dir)
 			for i, filename in enumerate(image_filenames):
-				image_id = i
+				image_id  = filename #image_id = i
 				img_path = os.path.join(images_dir,filename)
 				name = filename[:-4]
 				ann_path = os.path.join(annotations_dir,name + '.xml')
@@ -105,14 +109,14 @@ class CarPlateConfig(mrcnn.config.Config):
 	NAME = "carplate_cfg"
 	GPU_COUNT = 1
 	IMAGES_PER_GPU = 1
-	STEPS_PER_EPOCH = 131
+	STEPS_PER_EPOCH = 130
 	EPOCHS = 10  #epochs 설정
 
 	def __init__(self, dataset) :
-		super(CarPlateConfig, self).__init__()
+		#변수 초기화를 먼저 해준후 super class를 호출한다. by 윤경섭 
 		CarPlateConfig.NUM_CLASSES = dataset.get_class_len()  # train set에서의 class 갯수
 		CarPlateConfig.STEPS_PER_EPOCH = dataset.get_image_len() # train set에서의 영상 갯수
-
+		super(CarPlateConfig, self).__init__()
 
 # prepare train set
 train_set = CarPlateDataset()
