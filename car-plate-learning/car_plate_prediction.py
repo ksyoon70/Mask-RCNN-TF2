@@ -57,8 +57,11 @@ for filename in os.listdir(images_dir):
 	#image = plt.imread(image_path)
 
 	if os.path.exists(image_path) :
-		image = cv2.imread(image_path)
-		image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+		#image = cv2.imread(image_path)
+		#image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+		image = skimage.io.imread(image_path)
+		if image.ndim != 3:
+			image = skimage.color.gray2rgb(image)
 		# Perform a forward pass of the network to obtain the results
 		r = model.detect([image], verbose=0)
 		
@@ -75,8 +78,6 @@ for filename in os.listdir(images_dir):
 	else :
 		print('image path : {} is not exist!'.format(image_path))
 	
-	#image = skimage.io.imread(image_path)
-	#if image.ndim != 3:
-	#	image = skimage.color.gray2rgb(image)
+
 
 	
