@@ -62,3 +62,5 @@ ENV/
 /car-plate-learning/BMT_image
 /car-plate-learning/TEST_image
 /car-plate-learning/car-plate
+
+car-plate-learning/classtest.py
