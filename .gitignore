@@ -72,3 +72,5 @@ car-plate-learning/2019_BMT영상/
 mrcnn/carplate_cfg*/
 
 samples/coco/.spyproject/
+
+samples/coco/TEST_image_coco/
