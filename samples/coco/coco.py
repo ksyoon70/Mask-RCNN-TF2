@@ -108,10 +108,12 @@ class CocoDataset(utils.Dataset):
         if auto_download is True:
             self.auto_download(dataset_dir, subset, year)
 
-        coco = COCO("{}/annotations/instances_{}{}.json".format(dataset_dir, subset, year))
+        #coco = COCO("{}/annotations/instances_{}{}.json".format(dataset_dir, subset, year))
+        coco = COCO("{}/annotations.json".format(dataset_dir))
         if subset == "minival" or subset == "valminusminival":
             subset = "val"
-        image_dir = "{}/{}{}".format(dataset_dir, subset, year)
+        #image_dir = "{}/{}{}".format(dataset_dir, subset, year)
+        image_dir = "{}".format(dataset_dir)
 
         # Load all classes or a subset?
         if not class_ids:
@@ -479,13 +481,14 @@ if __name__ == '__main__':
         # validation set, as as in the Mask RCNN paper.
         dataset_train = CocoDataset()
         dataset_train.load_coco(args.dataset, "train", year=args.year, auto_download=args.download)
-        if args.year in '2014':
-            dataset_train.load_coco(args.dataset, "valminusminival", year=args.year, auto_download=args.download)
+        #if args.year in '2014':
+            #dataset_train.load_coco(args.dataset, "valminusminival", year=args.year, auto_download=args.download)
         dataset_train.prepare()
 
         # Validation dataset
         dataset_val = CocoDataset()
-        val_type = "val" if args.year in '2017' else "minival"
+        #val_type = "val" if args.year in '2017' else "minival"
+        val_type = "val"
         dataset_val.load_coco(args.dataset, val_type, year=args.year, auto_download=args.download)
         dataset_val.prepare()
 

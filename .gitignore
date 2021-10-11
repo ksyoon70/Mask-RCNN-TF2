@@ -69,18 +69,6 @@ car-plate-learning/.spyproject/
 
 car-plate-learning/2019_BMT영상/
 
-mrcnn/carplate_cfg20210928T0206/
+mrcnn/carplate_cfg*/
 
-mrcnn/carplate_cfg20210928T0215/
-
-mrcnn/carplate_cfg20210928T0913/
-
-mrcnn/carplate_cfg20211005T0031/
-
-mrcnn/carplate_cfg20211005T0056/
-
-mrcnn/kangaroo_cfg20210918T1611/
-
-mrcnn/kangaroo_cfg20210928T0119/
-
-mrcnn/kangaroo_cfg20210928T0122/
+samples/coco/.spyproject/

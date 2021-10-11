@@ -3,6 +3,10 @@ import os, shutil
 import xml.etree
 from numpy import zeros, asarray
 import sys
+import numpy as np
+import skimage.color
+import skimage.io
+import skimage.transform
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
@@ -81,6 +85,7 @@ class CarPlateDataset(mrcnn.utils.Dataset):
 		return boxes, cls_names, width, height, depth
 
 	# load the masks for an image
+	
 	def load_mask(self, image_id):
 		info = self.image_info[image_id]
 		path = info['annotation']
@@ -96,6 +101,59 @@ class CarPlateDataset(mrcnn.utils.Dataset):
 			#class_ids.append(self.class_names.index('kangaroo'))
 			class_ids.append(self.class_names.index(cls_names[i])) # car plate2종류가 있으므로 약간 수정
 		return masks, asarray(class_ids, dtype='int32')
+	
+	"""
+	def load_mask(self, image_id):
+		#Generate instance masks for an image.
+		#Returns:
+		#masks: A bool array of shape [height, width, instance count] with
+		#	one mask per instance.
+		#class_ids: a 1D array of class IDs of the instance masks.
+		
+		info = self.image_info[image_id]
+		# Get mask directory from image path
+		mask_dir = os.path.join(os.path.dirname(os.path.dirname(info['path'])), "masks")
+
+		# Read mask files from .png image
+		mask = []
+		for f in next(os.walk(mask_dir))[2]:
+			if f.endswith(".png"):
+				m = skimage.io.imread(os.path.join(mask_dir, f)).astype(np.bool)
+				if m.shape[0] != self.image_info["height"] or m.shape[1] != self.image_info["width"]:
+					m = np.ones([self.image_info["height"], self.image_info["width"]], dtype=bool)
+				mask.append(m)
+		mask = np.stack(mask, axis=-1)
+		# Return mask, and array of class IDs of each instance. Since we have
+		# one class ID, we return an array of ones
+		return mask, np.ones([mask.shape[-1]], dtype=np.int32)
+	"""
+	"""
+	def load_mask(self, image_id):
+	
+	#Generate instance masks for an image.
+	#Returns:
+	#masks: A bool array of shape [height, width, instance count] with
+	#	one mask per instance.
+	#class_ids: a 1D array of class IDs of the instance masks.
+	# If not a balloon dataset image, delegate to parent class.
+	image_info = self.image_info[image_id]
+	if image_info["source"] != "balloon":
+		return super(self.__class__, self).load_mask(image_id)
+
+	# Convert polygons to a bitmap mask of shape
+	# [height, width, instance_count]
+	info = self.image_info[image_id]
+	mask = np.zeros([info["height"], info["width"], len(info["polygons"])],
+					dtype=np.uint8)
+	for i, p in enumerate(info["polygons"]):
+		# Get indexes of pixels inside the polygon and set them to 1
+		rr, cc = skimage.draw.polygon(p['all_points_y'], p['all_points_x'])
+		mask[rr, cc, i] = 1
+
+	# Return mask, and array of class IDs of each instance. Since we have
+	# one class ID only, we return an array of 1s
+	return mask.astype(np.bool), np.ones([mask.shape[-1]], dtype=np.int32)
+	"""
 
 	def get_class_len(self):
 		return len(self.class_info)
