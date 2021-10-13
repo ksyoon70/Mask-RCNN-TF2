@@ -222,3 +222,12 @@ dependencies:
     - werkzeug==2.0.1
     - widgetsnbextension==3.5.1
 prefix: C:\Users\user\.conda\envs\mask_rcnn
+
+
+pip로 설정 할 경우
+python -m venv mask_rcnn
+pip install -r reqtf25.txt
+여기서 중요한건 에러가 없이 할려면
+aktwelve_mask_rcnn 에서를 해야 한다는 것이다.
+python setup.py clean --all install
+
