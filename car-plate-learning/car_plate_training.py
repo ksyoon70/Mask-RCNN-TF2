@@ -23,8 +23,9 @@ if tf.config.list_physical_devices('GPU') :
 	
 class CarPlateDataset(mrcnn.utils.Dataset):
 
-	def __init__(self, class_map=None):
+	def __init__(self, class_map=None,annotation='labelImg'):
 		super(CarPlateDataset,self).__init__(class_map=class_map)
+		self.annotation = annotation
 
 	def load_dataset(self, dataset_dir, is_train=True):
 		self.add_class("dataset", 1, "car")
@@ -45,12 +46,20 @@ class CarPlateDataset(mrcnn.utils.Dataset):
 
 		if image_files_cnt == ann_files_cnt  and (image_files_cnt != 0 or ann_files_cnt !=0):
 			image_filenames = os.listdir(images_dir)
-			for i, filename in enumerate(image_filenames):
-				image_id  = filename #image_id = i
-				img_path = os.path.join(images_dir,filename)
-				name = filename[:-4]
-				ann_path = os.path.join(annotations_dir,name + '.xml')
-				self.add_image('dataset', image_id=image_id, path=img_path, annotation=ann_path)
+			if self.annotation == 'labelImg' :
+				for i, filename in enumerate(image_filenames):
+					image_id  = filename #image_id = i
+					img_path = os.path.join(images_dir,filename)
+					name = filename[:-4]
+					ann_path = os.path.join(annotations_dir,name + '.xml')
+					self.add_image('dataset', image_id=image_id, path=img_path, annotation=ann_path)
+			elif self.annotation == 'labelme' :
+				for i, filename in enumerate(image_filenames):
+					image_id  = filename #image_id = i
+					img_path = os.path.join(images_dir,filename)
+					name = filename[:-4]
+					ann_path = os.path.join(annotations_dir,name + '.xml')
+					self.add_image('dataset', image_id=image_id, path=img_path, annotation=ann_path)
 			
 			return True
 
@@ -176,8 +185,21 @@ class CarPlateConfig(mrcnn.config.Config):
 		CarPlateConfig.STEPS_PER_EPOCH = dataset.get_image_len() # train set에서의 영상 갯수
 		super(CarPlateConfig, self).__init__()
 
+
+import argparse
+
+# Parse command line arguments
+parser = argparse.ArgumentParser(
+	description='Train Mask R-CNN')
+parser.add_argument('--annotation',
+					default='labelme',
+					metavar="<annotaion tool>",
+					help="'labelimg' or 'labelme' on dataset")
+
+args = parser.parse_args()
+print("Annotation: ", args.annotation)
 # prepare train set
-train_set = CarPlateDataset()
+train_set = CarPlateDataset(annotation=args.annotation)
 car_plate_dir = os.path.join(os.path.dirname(__file__),'car-plate')
 if not os.path.isdir(car_plate_dir):
 	os.mkdir(car_plate_dir)
@@ -195,7 +217,7 @@ else :
     quit()
 
 # prepare test/val set
-valid_dataset = CarPlateDataset()
+valid_dataset = CarPlateDataset(annotation=args.annotation)
 valid_dataset_dir = os.path.join(car_plate_dir,'valid')
 #디렉토리가 없으면 만든다.
 if not os.path.isdir(valid_dataset_dir):
