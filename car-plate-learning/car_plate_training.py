@@ -7,6 +7,7 @@ import numpy as np
 import skimage.color
 import skimage.io
 import skimage.transform
+import json			#json 파일을 읽기 위하여 추가 by 윤경섭
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
@@ -58,7 +59,7 @@ class CarPlateDataset(mrcnn.utils.Dataset):
 					image_id  = filename #image_id = i
 					img_path = os.path.join(images_dir,filename)
 					name = filename[:-4]
-					ann_path = os.path.join(annotations_dir,name + '.xml')
+					ann_path = os.path.join(annotations_dir,name + '.json')
 					self.add_image('dataset', image_id=image_id, path=img_path, annotation=ann_path)
 			
 			return True
@@ -71,26 +72,48 @@ class CarPlateDataset(mrcnn.utils.Dataset):
 
 	# extract bounding boxes from an annotation file
 	def extract_boxes(self, filename):
-		tree = xml.etree.ElementTree.parse(filename)
-
-		root = tree.getroot()
 
 		boxes = list()
 		cls_names = list()
-		for obj in root.findall('.//object'):
-			box = obj.find('bndbox')
-			xmin = int(box.find('xmin').text)
-			ymin = int(box.find('ymin').text)
-			xmax = int(box.find('xmax').text)
-			ymax = int(box.find('ymax').text)
-			coors = [xmin, ymin, xmax, ymax]
-			boxes.append(coors)
-			cls_name = obj.find('name').text
-			cls_names.append(cls_name)
 
-		width = int(root.find('.//size/width').text)
-		height = int(root.find('.//size/height').text)
-		depth = int(root.find('.//size/depth').text)
+		if self.annotation == 'labelImg' : #labelImg annotator를 사용할 경우
+			tree = xml.etree.ElementTree.parse(filename)
+			root = tree.getroot()
+			
+			for obj in root.findall('.//object'):
+				box = obj.find('bndbox')
+				xmin = int(box.find('xmin').text)
+				ymin = int(box.find('ymin').text)
+				xmax = int(box.find('xmax').text)
+				ymax = int(box.find('ymax').text)
+				coors = [xmin, ymin, xmax, ymax]
+				boxes.append(coors)
+				cls_name = obj.find('name').text
+				cls_names.append(cls_name)
+
+			width = int(root.find('.//size/width').text)
+			height = int(root.find('.//size/height').text)
+			depth = int(root.find('.//size/depth').text)
+		elif self.annotation == 'labelme' :
+			with open(filename, 'r',encoding="UTF-8") as f:
+				json_data = json.load(f)
+				for item, shape in enumerate(json_data['shapes']):
+					cls_name = shape['label'] #class 이름을 읽어온다.
+					points = shape['points']
+					arr = np.array(points)
+					xmin = np.min(arr[:,0])
+					ymin = np.min(arr[:,1])
+					xmax = np.max(arr[:,0])
+					ymax = np.max(arr[:,1])
+					#print('class name is :{} box is {}, {}, {}, {}'.format(cls_name,xmin,ymin,xmax,ymax))
+					coors = [xmin, ymin, xmax, ymax]
+					boxes.append(coors)	
+
+			width = int(root.find('.//size/width').text)
+			height = int(root.find('.//size/height').text)
+			depth = int(root.find('.//size/depth').text)	
+
+		
 		return boxes, cls_names, width, height, depth
 
 	# load the masks for an image
