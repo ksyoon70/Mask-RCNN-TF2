@@ -109,9 +109,9 @@ class CarPlateDataset(mrcnn.utils.Dataset):
 					coors = [xmin, ymin, xmax, ymax]
 					boxes.append(coors)	
 
-			width = int(root.find('.//size/width').text)
-			height = int(root.find('.//size/height').text)
-			depth = int(root.find('.//size/depth').text)	
+				width = json_data['imageWidth']
+				height = json_data['imageHeight']
+				depth = 3 # labelme에서는 채널을 저장안하므로 기본 3을 써준다. 어짜피 읽는 쪽에서 안쓴다. by 윤경섭
 
 		
 		return boxes, cls_names, width, height, depth
@@ -125,13 +125,36 @@ class CarPlateDataset(mrcnn.utils.Dataset):
 		masks = zeros([h, w, len(boxes)], dtype='uint8')
 
 		class_ids = list()
-		for i in range(len(boxes)):
-			box = boxes[i]
-			row_s, row_e = box[1], box[3]
-			col_s, col_e = box[0], box[2]
-			masks[row_s:row_e, col_s:col_e, i] = 1
-			#class_ids.append(self.class_names.index('kangaroo'))
-			class_ids.append(self.class_names.index(cls_names[i])) # car plate2종류가 있으므로 약간 수정
+		if self.annotation == 'labelImg' : #labelImg annotator를 사용할 경우
+			for i in range(len(boxes)):
+				box = boxes[i]
+				row_s, row_e = box[1], box[3]
+				col_s, col_e = box[0], box[2]
+				masks[row_s:row_e, col_s:col_e, i] = 1
+				#class_ids.append(self.class_names.index('kangaroo'))
+				class_ids.append(self.class_names.index(cls_names[i])) # car plate2종류가 있으므로 약간 수정
+		elif self.annotation == 'labelme' :
+			#Generate instance masks for an image.
+			#Returns:
+			#masks: A bool array of shape [height, width, instance count] with
+			#	one mask per instance.
+			#class_ids: a 1D array of class IDs of the instance masks.
+			# If not a balloon dataset image, delegate to parent class.
+			image_info = self.image_info[image_id]
+			#if image_info["source"] != "balloon":
+			#	return super(self.__class__, self).load_mask(image_id)
+
+			# Convert polygons to a bitmap mask of shape
+			# [height, width, instance_count]
+			info = self.image_info[image_id]
+			for i, p in enumerate(info["polygons"]):
+				# Get indexes of pixels inside the polygon and set them to 1
+				rr, cc = skimage.draw.polygon(p['all_points_y'], p['all_points_x'])
+				masks[rr, cc, i] = 1
+
+			# Return mask, and array of class IDs of each instance. Since we have
+			# one class ID only, we return an array of 1s
+			#return mask.astype(np.bool), np.ones([mask.shape[-1]], dtype=np.int32)
 		return masks, asarray(class_ids, dtype='int32')
 	
 	"""
