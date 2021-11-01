@@ -107,7 +107,8 @@ class CarPlateDataset(mrcnn.utils.Dataset):
 					ymax = np.max(arr[:,1])
 					#print('class name is :{} box is {}, {}, {}, {}'.format(cls_name,xmin,ymin,xmax,ymax))
 					coors = [xmin, ymin, xmax, ymax]
-					boxes.append(coors)	
+					#boxes.append(coors)
+					boxes.append(points)	
 
 				width = json_data['imageWidth']
 				height = json_data['imageHeight']
@@ -140,18 +141,20 @@ class CarPlateDataset(mrcnn.utils.Dataset):
 			#	one mask per instance.
 			#class_ids: a 1D array of class IDs of the instance masks.
 			# If not a balloon dataset image, delegate to parent class.
-			image_info = self.image_info[image_id]
+			#image_info = self.image_info[image_id]
 			#if image_info["source"] != "balloon":
 			#	return super(self.__class__, self).load_mask(image_id)
 
 			# Convert polygons to a bitmap mask of shape
 			# [height, width, instance_count]
-			info = self.image_info[image_id]
-			for i, p in enumerate(info["polygons"]):
+			#info = self.image_info[image_id]
+			for i, p in enumerate(boxes):
 				# Get indexes of pixels inside the polygon and set them to 1
-				rr, cc = skimage.draw.polygon(p['all_points_y'], p['all_points_x'])
-				masks[rr, cc, i] = 1
-
+				xpt = [ i[0] for i in p]
+				ypt = [ i[1] for i in p]
+				rr, cc = skimage.draw.polygon(xpt, ypt)
+				masks[cc, rr, i] = 1
+				class_ids.append(self.class_names.index(cls_names[i]))
 			# Return mask, and array of class IDs of each instance. Since we have
 			# one class ID only, we return an array of 1s
 			#return mask.astype(np.bool), np.ones([mask.shape[-1]], dtype=np.int32)
