@@ -98,7 +98,7 @@ class CarPlateDataset(mrcnn.utils.Dataset):
 			with open(filename, 'r',encoding="UTF-8") as f:
 				json_data = json.load(f)
 				for item, shape in enumerate(json_data['shapes']):
-					cls_name = shape['label'] #class 이름을 읽어온다.
+					cls_names.append(shape['label']) #class 이름을 읽어온다.
 					points = shape['points']
 					arr = np.array(points)
 					xmin = np.min(arr[:,0])
